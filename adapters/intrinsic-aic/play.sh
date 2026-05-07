@@ -8,7 +8,7 @@
 # task board + cable on gripper, all visible, no fixed trial schedule,
 # no scoring pressure. The user iterates on their policy against this.
 #
-# Inputs (env vars, supplied by Workbench's CLI from psf.project.yaml):
+# Inputs (env vars, supplied by Workbench's CLI from workbench.project.yaml):
 #   PSF_AIC_WS                  Path to the AIC pixi workspace
 #   PSF_AIC_GUI                 Show Gazebo window (true/false)
 #   PSF_AIC_RVIZ                Show RViz window (true/false)

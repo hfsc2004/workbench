@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# psf-workbench — the Workbench CLI.
+# workbench — the Workbench CLI.
 #
 # This is the start of the platform's primary command. Today it implements
 # one verb (`run --mode play`) routed through the intrinsic-aic adapter.
-# Will grow to cover all the verbs in PSF_Workbench.md Rule 2:
+# Will grow to cover all the verbs in DESIGN.md Rule 2:
 #   run, stop, log, diagnose, fingerprint, package, push, submit,
 #   replay, audit, sync, store.
 #
@@ -12,9 +12,9 @@
 # invokes the adapter's mode-specific entry point.
 #
 # Usage (from inside a Workbench project — a directory containing
-# psf.project.yaml):
-#   psf-workbench run --mode play
-#   psf-workbench help
+# workbench.project.yaml):
+#   workbench run --mode play
+#   workbench help
 
 set -euo pipefail
 
@@ -26,12 +26,12 @@ ADAPTERS_DIR="$WORKBENCH_HOME/adapters"
 err() { echo "[psf] $*" >&2; }
 die() { err "$*"; exit 1; }
 
-# Find the project root by walking up from PWD looking for psf.project.yaml.
+# Find the project root by walking up from PWD looking for workbench.project.yaml.
 find_project_root() {
   local d
   d="$(pwd)"
   while [[ "$d" != "/" ]]; do
-    if [[ -f "$d/psf.project.yaml" ]]; then
+    if [[ -f "$d/workbench.project.yaml" ]]; then
       echo "$d"
       return 0
     fi
@@ -40,7 +40,7 @@ find_project_root() {
   return 1
 }
 
-# Read a top-level scalar from psf.project.yaml. Tiny YAML reader for the
+# Read a top-level scalar from workbench.project.yaml. Tiny YAML reader for the
 # small subset Workbench currently uses — replaced with a real parser later.
 yaml_get() {
   local file="$1"
@@ -57,7 +57,7 @@ yaml_get() {
   ' "$file"
 }
 
-# Read a key under adapter_config: in psf.project.yaml. Same caveat — this
+# Read a key under adapter_config: in workbench.project.yaml. Same caveat — this
 # is a placeholder reader, not a real YAML parser.
 yaml_get_under() {
   local file="$1"
@@ -86,7 +86,7 @@ cmd_run() {
     case "$1" in
       --mode) mode="$2"; shift 2 ;;
       --mode=*) mode="${1#--mode=}"; shift ;;
-      -h|--help) echo "usage: psf-workbench run --mode <play|eval|submit>"; return 0 ;;
+      -h|--help) echo "usage: workbench run --mode <play|eval|submit>"; return 0 ;;
       *) die "unknown arg: $1" ;;
     esac
   done
@@ -95,13 +95,13 @@ cmd_run() {
 
   local project_root
   project_root="$(find_project_root)" \
-    || die "no psf.project.yaml found in this directory or any parent.
-        Workbench projects are identified by a psf.project.yaml file at the root."
+    || die "no workbench.project.yaml found in this directory or any parent.
+        Workbench projects are identified by a workbench.project.yaml file at the root."
 
-  local project_file="$project_root/psf.project.yaml"
+  local project_file="$project_root/workbench.project.yaml"
   local adapter
   adapter="$(yaml_get "$project_file" adapter)"
-  [[ -n "$adapter" ]] || die "psf.project.yaml has no 'adapter:' field"
+  [[ -n "$adapter" ]] || die "workbench.project.yaml has no 'adapter:' field"
 
   local adapter_dir="$ADAPTERS_DIR/$adapter"
   [[ -d "$adapter_dir" ]] || die "unknown adapter: $adapter
@@ -143,10 +143,10 @@ cmd_run() {
 
 cmd_help() {
   cat <<EOF
-psf-workbench — robotics workbench, v0.0.1 (early development)
+workbench — robotics workbench, v0.0.1 (early development)
 
 usage:
-  psf-workbench <verb> [args]
+  workbench <verb> [args]
 
 verbs implemented:
   run --mode <play|eval|submit>   run the project in the named mode
@@ -156,7 +156,7 @@ planned verbs:
   stop, log, diagnose, fingerprint, package, push, submit,
   replay, audit, sync, store
 
-a Workbench project is identified by a psf.project.yaml at its root.
+a Workbench project is identified by a workbench.project.yaml at its root.
 adapters live under: $ADAPTERS_DIR
 
 currently installed adapters:
@@ -177,5 +177,5 @@ shift
 case "$verb" in
   run)            cmd_run "$@" ;;
   help|-h|--help) cmd_help ;;
-  *)              die "unknown verb: $verb (try: psf-workbench help)" ;;
+  *)              die "unknown verb: $verb (try: workbench help)" ;;
 esac

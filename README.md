@@ -17,7 +17,7 @@ architecture is designed to extend to MuJoCo, microcontroller endpoints
 of it is implemented yet. The repo currently contains:
 
 - [`DESIGN.md`](DESIGN.md) — full architectural design and roadmap.
-- `psf-workbench` — the platform CLI. One verb implemented so far
+- `workbench` — the platform CLI. One verb implemented so far
   (`run --mode play`).
 - `adapters/intrinsic-aic/` — the first adapter pack, for the
   Intrinsic AI for Industry Challenge.
@@ -26,7 +26,7 @@ of it is implemented yet. The repo currently contains:
 
 The CLI dispatches a verb against an adapter's mode-specific entry
 point. Today that means: from a Workbench project directory (one with
-a `psf.project.yaml`), running `psf-workbench run --mode play` brings
+a `workbench.project.yaml`), running `workbench run --mode play` brings
 up an AIC simulator with no evaluator running, so a user can iterate
 on a policy interactively.
 
@@ -48,10 +48,10 @@ experts can focus on the actual machine.
 
 ```bash
 # 1. Clone this repo somewhere.
-git clone https://github.com/hfsc2004/workbench.git ~/PSF_Workbench
+git clone https://github.com/hfsc2004/workbench.git ~/Workbench
 
-# 2. From a project directory containing psf.project.yaml:
-~/PSF_Workbench/psf-workbench run --mode play
+# 2. From a project directory containing workbench.project.yaml:
+~/Workbench/workbench run --mode play
 ```
 
 The project file declares which adapter the project uses and what
