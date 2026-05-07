@@ -695,33 +695,84 @@ regardless of industrial uptake.
 
 ---
 
-## Part 9 — Workbench v0.1 success criteria
+## Part 9 — Release milestones
 
-Before any roadmap dates or "phases," what does v0.1 actually have to *do*?
-This is the bar for "Workbench v0.1 is a real product." Seven criteria:
+Workbench is being released incrementally. Each milestone has a
+narrow, honest claim. Items beyond the current milestone are *real*
+features tracked here as planned, not ambient promises.
 
-1. **Create an AIC project.** A user runs one command (or clicks one
-   button) and gets a working project directory with adapter wiring,
-   policy template, and inspectable generated artifacts.
-2. **Generate inspectable artifacts.** Dockerfiles, compose files,
-   entrypoints, launch files all land in `generated/`, marked with their
-   trust mode, readable and editable.
-3. **Run in Play mode.** Sim + controllers + policy come up without the
-   evaluator. Policy can be edited and hot-reloaded without restarting
-   the sim. The user can watch the robot live and iterate.
-4. **Run in Eval mode.** The full AIC eval stack runs headless or GUI.
-   One command to run; the GUI/headless toggle is a flag, not a different
-   procedure.
-5. **Explain logs.** When a run finishes, `psf logs --explain` produces
-   the friendly summary instead of dumping raw output. Raw is preserved
-   and one click away.
-6. **Build and push a submission image.** OCI image is built, fingerprinted,
-   tagged, pushed to ECR. Portal-ready URI is emitted.
-7. **Produce a run fingerprint and score record.** Every run gets a
-   manifest tying score to source state. `psf replay <run_id>` works.
+### v0.1.0 — Compose and run a policy in Play mode (released 2026-05-07)
 
-If Workbench v0.1 ships and a user can do all seven on a clean machine in
-under 30 minutes, the product is real. Anything beyond these is v0.2+.
+What a user can do:
+
+1. **Open the desktop app** via `start.sh` after a one-time `RUN_ONCE.sh`
+   bootstrap. Splash → project chooser.
+2. **Open an AIC project** by browsing to a directory containing
+   `workbench.project.yaml`, or pick from recents. ✓
+3. **Compose a policy as a Behavior Deck** — drag named cards
+   (Approach, Descend, Wiggle, Spiral search, Back off, Insert) into
+   a sequence, edit their parameters in a side form, reorder freely.
+   No Python required for the user. ✓
+4. **Generate inspectable artifacts.** `deck.yaml` and `policy.py`
+   land in the project, with header comments noting their generated
+   provenance. The user can read them, edit them, git-track them. ✓
+5. **Run in Play mode.** A button-click brings up the AIC simulator
+   (Gazebo + RViz + controllers + cable on gripper) without the
+   evaluator. Subprocess output streams live into the operator view. ✓
+6. **Stop cleanly.** SIGINT is sent to the bash chain *and* `docker stop`
+   directly to the container. Workbench waits for real cleanup before
+   exiting. Orphan workbench-* containers from prior crashes are swept
+   on startup. ✓
+
+What a user *cannot yet do* (planned for later milestones):
+
+- Have the generated policy actually drive the robot in Play mode (the
+  policy is generated and the sim runs, but the connection between the
+  two — launching `ros2 run aic_model aic_model -p policy:=...` against
+  the live sim — is not yet automated). **v0.2 target.**
+- Run in Eval mode through Workbench (currently falls back to manual
+  `docker compose` per `adapter.yaml`'s documented fallback).
+- Explain logs — Log Intelligence is unimplemented. Logs pass through
+  raw.
+- Build and push a submission OCI image through Workbench (manual
+  scripts in `AIC-Submission/scripts/` for now).
+- Reproducibility fingerprints. No run manifest, no `replay`.
+
+### v0.2.0 — Policy drives the robot (next)
+
+Goal: the dev loop closes. Edit deck → Save & Generate → Run → robot
+moves. One window, one click between deck change and visible result.
+
+Concrete:
+
+1. Workbench launches the user's policy as a second subprocess attached
+   to the running Play-mode sim, using the AIC runtime
+   (`ros2 run aic_model aic_model -p policy:=...`). Streams its output
+   into the operator log alongside the sim's.
+2. "Restart policy" button reloads the policy without restarting the
+   sim — the AIC sim stays up between iterations.
+3. Verified end-to-end: a user without robotics experience can compose
+   a deck, click run, and see the robot do something.
+
+### v0.3.0 — Submission flow
+
+Build + fingerprint + ECR push + portal URI all from inside Workbench.
+First run manifest with score record. `replay` verb.
+
+### v0.4.0 — Log Intelligence v1
+
+Contextual interpreter. Rule packs for the AIC stack ("Gazebo shutdown
+noise", "Zenoh ACL allow notice", "containerd snapshot wedged" etc.).
+Friendly summary by default; raw lines one click away.
+
+### v0.5.0 — Storage Manager
+
+Workbench owns Docker / containerd / build cache / model cache layout.
+Detects unmanaged storage. Migration with dry-run + rollback.
+
+### Post-v0.5 — Second adapter, generic ROS 2, etc.
+
+Per Part 10 (Build order).
 
 ---
 
