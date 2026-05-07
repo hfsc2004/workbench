@@ -33,7 +33,7 @@ modes:
     fallback: |
       Use AIC-Submission/scripts/build.sh and push_ecr.sh for now.
 
-# Configuration knobs an AIC project can set in psf.project.yaml under
+# Configuration knobs an AIC project can set in workbench.project.yaml under
 # `adapter_config:` — these become PSF_AIC_* env vars to the launcher.
 config:
   aic_ws:

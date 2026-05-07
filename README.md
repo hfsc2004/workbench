@@ -1,4 +1,12 @@
-# PSF Workbench
+<p align="center">
+  <img src="ui/assets/logo.png" alt="PSF Workbench" width="200" />
+</p>
+
+<h1 align="center">PSF Workbench</h1>
+
+<p align="center"><i>Robotics tooling, deployable.</i></p>
+
+---
 
 > Anything you'd have to set up by hand to use modern robotics tooling
 > productively, Workbench sets up for you. The underlying software runs
@@ -11,31 +19,30 @@ ROS 2 ecosystem (Gazebo, MoveIt, Nav2, ros2_control, vendor SDKs); the
 architecture is designed to extend to MuJoCo, microcontroller endpoints
 (ESP32, RP2040), and industrial protocols (PLC, Modbus, OPC-UA).
 
-## Status
+## Status — v0.0.1
 
-**v0.0.1 — early development.** The architecture is settled; very little
-of it is implemented yet. The repo currently contains:
+Early development. The architecture is settled; the implementation is
+small but real. What ships in this repo today:
 
-- [`DESIGN.md`](DESIGN.md) — full architectural design and roadmap.
-- `psf-workbench` — the platform CLI. One verb implemented so far
-  (`run --mode play`).
-- `adapters/intrinsic-aic/` — the first adapter pack, for the
-  Intrinsic AI for Industry Challenge.
-- `mock.html`, `mock2.html`, `mock3.html` — UI mocks for the
-  engineer view, operator view, and onboarding flow.
+| Component | Status |
+|---|---|
+| Architecture & design (`DESIGN.md`) | ✓ stable |
+| `workbench` CLI | ✓ one verb (`run --mode play`) |
+| `intrinsic-aic` adapter pack | ✓ Play mode wired up; Eval / Submit fall back to manual today |
+| Electron desktop UI | ✓ splash + project chooser + onboarding wizard (designed; install/run wiring is post-AIC) |
+| Storage Manager | — planned (post-AIC week 2) |
+| Log Intelligence | — planned (post-AIC week 1) |
+| Reproducibility fingerprints | — planned (post-AIC week 4) |
 
 The CLI dispatches a verb against an adapter's mode-specific entry
 point. Today that means: from a Workbench project directory (one with
-a `psf.project.yaml`), running `psf-workbench run --mode play` brings
+a `workbench.project.yaml`), running `workbench run --mode play` brings
 up an AIC simulator with no evaluator running, so a user can iterate
 on a policy interactively.
 
-Eval mode and Submit mode are not yet managed by Workbench; the
-adapter manifest documents the manual fallback for now.
-
 ## Why this exists
 
-The core thesis is in [`DESIGN.md`](DESIGN.md), but in short:
+The core thesis is in [`DESIGN.md`](DESIGN.md). In short:
 
 Modern robotics is blocked less by raw capability than by integration
 complexity. The capability has been there for years. The blocker is
@@ -46,21 +53,40 @@ experts can focus on the actual machine.
 
 ## Try it (very early)
 
+### CLI only
+
 ```bash
 # 1. Clone this repo somewhere.
-git clone https://github.com/hfsc2004/workbench.git ~/PSF_Workbench
+git clone https://github.com/hfsc2004/workbench.git ~/Workbench
 
-# 2. From a project directory containing psf.project.yaml:
-~/PSF_Workbench/psf-workbench run --mode play
+# 2. From a project directory containing workbench.project.yaml:
+~/Workbench/workbench run --mode play
 ```
 
 The project file declares which adapter the project uses and what
-configuration it should pass through. See `adapters/intrinsic-aic/adapter.yaml`
+configuration it should pass through. See
+[`adapters/intrinsic-aic/adapter.yaml`](adapters/intrinsic-aic/adapter.yaml)
 for what configuration the AIC adapter understands.
 
-## Design rules (the load-bearing ones)
+### Desktop UI
 
-From [`DESIGN.md`](DESIGN.md):
+```bash
+# 1. Clone the repo (as above).
+# 2. Bootstrap once (installs Node 20+, Electron, UI deps):
+cd ~/Workbench
+./RUN_ONCE.sh
+
+# 3. Launch the desktop app:
+./workbench-ui
+```
+
+`RUN_ONCE.sh` is idempotent — re-run it any time deps drift. It targets
+Debian/Ubuntu hosts for now; macOS and Windows packaging come later.
+
+## Design rules
+
+The load-bearing rules from [`DESIGN.md`](DESIGN.md). Every PR is reviewed
+against them.
 
 1. **Wrap, never replace.** Workbench does not reimplement what
    existing robotics tooling already does well.
@@ -73,12 +99,38 @@ From [`DESIGN.md`](DESIGN.md):
 5. **Logs become human status.** Workbench's log handling is a
    contextual interpreter, not a filter.
 6. **Workbench owns storage layout.** When the user says "use the big
-   drive," every tool's data root goes there.
+   drive," every tool's data root goes there. Migration is never silent.
 7. **No telemetry by default.** Local-first means local-first.
 8. **Secrets never leave the secrets store.** Never written to
    fingerprints, generated artifacts, logs, telemetry, or audit records.
 9. **Engines never own actuation.** Every engine output passes through
    a deterministic safety gate.
+
+## Repository layout
+
+```
+Workbench/
+├── workbench                    the CLI (bash, v0.0.1)
+├── workbench-ui                 generated launcher for the Electron app
+├── RUN_ONCE.sh                  idempotent bootstrap (Node + Electron + UI deps)
+├── DESIGN.md                    architecture, build order, success criteria
+├── README.md                    this file
+├── LICENSE                      Apache 2.0
+├── adapters/
+│   └── intrinsic-aic/           the AIC adapter pack
+│       ├── adapter.yaml
+│       └── play.sh
+├── ui/                          Electron desktop app
+│   ├── package.json
+│   ├── main.js                  Electron main process
+│   ├── preload.js               contextBridge surface
+│   ├── renderer/                splash, chooser, onboarding pages
+│   └── assets/
+│       └── logo.png
+└── mock.html / mock2.html / mock3.html
+                                 design references — engineer view,
+                                 operator view, onboarding flow
+```
 
 ## License
 

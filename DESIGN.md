@@ -208,7 +208,7 @@ caches that determine runtime behavior the user can't see.
 
 ```
 project/
-├── psf.project.yaml
+├── workbench.project.yaml
 ├── policy/
 ├── generated/
 │   ├── MANAGED.md          ← rules of the road
