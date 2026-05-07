@@ -19,26 +19,31 @@ ROS 2 ecosystem (Gazebo, MoveIt, Nav2, ros2_control, vendor SDKs); the
 architecture is designed to extend to MuJoCo, microcontroller endpoints
 (ESP32, RP2040), and industrial protocols (PLC, Modbus, OPC-UA).
 
-## Status — v0.0.1
+## Status — v0.1.0
 
-Early development. The architecture is settled; the implementation is
-small but real. What ships in this repo today:
+What ships now:
 
 | Component | Status |
 |---|---|
 | Architecture & design (`DESIGN.md`) | ✓ stable |
-| `workbench` CLI | ✓ one verb (`run --mode play`) |
-| `intrinsic-aic` adapter pack | ✓ Play mode wired up; Eval / Submit fall back to manual today |
-| Electron desktop UI | ✓ splash + project chooser + onboarding wizard (designed; install/run wiring is post-AIC) |
-| Storage Manager | — planned (post-AIC week 2) |
-| Log Intelligence | — planned (post-AIC week 1) |
-| Reproducibility fingerprints | — planned (post-AIC week 4) |
+| `workbench` CLI | ✓ `run --mode play` dispatches via adapter |
+| `intrinsic-aic` adapter pack | ✓ Play mode runs; Eval / Submit have documented manual fallbacks |
+| Electron desktop UI | ✓ splash → chooser → onboarding wizard → operator view |
+| **Behavior Deck editor** | ✓ compose policies as named cards with parameters |
+| **Code generator** | ✓ deck.yaml → working `policy.py` derived from `aic_model.policy.Policy` |
+| **Subprocess lifecycle** | ✓ clean SIGINT + `docker stop`, awaits real cleanup, sweeps orphan containers on startup |
+| Policy ↔ live sim auto-launch | — v0.2 target |
+| Eval mode managed by Workbench | — planned |
+| Log Intelligence | — planned |
+| Submission flow + fingerprints | — planned |
+| Storage Manager | — planned |
 
-The CLI dispatches a verb against an adapter's mode-specific entry
-point. Today that means: from a Workbench project directory (one with
-a `workbench.project.yaml`), running `workbench run --mode play` brings
-up an AIC simulator with no evaluator running, so a user can iterate
-on a policy interactively.
+The dev loop today: open the project in the Workbench desktop app,
+compose a policy by adding behavior cards (Approach, Descend, Wiggle,
+Spiral search, Back off, Insert), tweak parameters, click "Save &
+Generate code". Workbench writes `deck.yaml` and `policy.py` into your
+project. Click "Run Play mode" — Gazebo opens; the simulator is alive
+without the AIC evaluator (no scoring pressure, no fixed trial schedule).
 
 ## Why this exists
 
