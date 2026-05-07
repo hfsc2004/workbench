@@ -144,4 +144,4 @@ Apache 2.0. See [`LICENSE`](LICENSE).
 
 ## Author
 
-Aaron / Pseudo Science Fiction.
+Pseudo Science Fiction.
