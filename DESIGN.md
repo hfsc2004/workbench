@@ -963,6 +963,5 @@ Three reasons Workbench can do what others have failed at:
 ---
 
 *Author: Aaron / Pseudo Science Fiction.
-Design assistance: AI-assisted architecture exchange, May 2026.
 Last updated: 2026-05-07. To be revised after the AIC qualification
 submission and the Lessons File are complete.*

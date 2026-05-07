@@ -94,9 +94,16 @@ if [[ ! -f "$UI_DIR/package.json" ]]; then
 fi
 
 cd "$UI_DIR"
-if [[ -f "package-lock.json" ]]; then
-  npm ci --no-audit --no-fund
+# Prefer `npm ci` (faster, deterministic) when the lockfile is in sync
+# with package.json. If not — typically because deps were added to
+# package.json without regenerating the lockfile — fall back to
+# `npm install` which will reconcile the two.
+if [[ -f "package-lock.json" ]] && npm ci --no-audit --no-fund 2>/dev/null; then
+  :  # ci succeeded, nothing more to do
 else
+  if [[ -f "package-lock.json" ]]; then
+    say "lockfile out of sync with package.json — running 'npm install' to reconcile"
+  fi
   npm install --no-audit --no-fund
 fi
 cd "$REPO_DIR"

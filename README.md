@@ -144,5 +144,3 @@ Apache 2.0. See [`LICENSE`](LICENSE).
 ## Author
 
 Aaron / Pseudo Science Fiction.
-
-Design assistance: AI-assisted architecture exchange, May 2026.

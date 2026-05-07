@@ -54,6 +54,16 @@ contextBridge.exposeInMainWorld('workbench', {
     ipcRenderer.invoke('deck:save', { projectPath, deck }),
   deckGenerate: (projectPath, deck, adapterName) =>
     ipcRenderer.invoke('deck:generate', { projectPath, deck, adapterName }),
+
+  // policy file (Code view in the operator pane)
+  policyRead: (projectPath) => ipcRenderer.invoke('policy:read', projectPath),
+  policyWrite: (projectPath, text, opts = {}) =>
+    ipcRenderer.invoke('policy:write', {
+      projectPath, text,
+      expectedMtimeMs: opts.expectedMtimeMs,
+      force: !!opts.force,
+    }),
+
   openInEditor: (projectPath) =>
     ipcRenderer.invoke('project:open-in-editor', projectPath),
 });
