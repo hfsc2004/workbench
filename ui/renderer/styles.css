@@ -33,7 +33,13 @@ html, body {
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  user-select: none;          /* native-app feel; renderer text isn't selectable by default */
+  user-select: text;           /* text is selectable so users can copy errors / paths / IDs */
+  cursor: default;
+}
+
+/* but interactive controls don't drag-select text */
+button, .option, .mode, .recent, .drive-pick, .step, a {
+  user-select: none;
 }
 
 a { color: inherit; cursor: pointer; }
