@@ -355,6 +355,122 @@
     }
     .deck-foot .saved.show { opacity: 1; }
 
+    /* tab strip — Deck / Code in the left pane */
+    .tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--card-edge);
+      background: rgba(0,0,0,0.18);
+    }
+    .tab {
+      padding: 8px 14px;
+      font-size: 12px;
+      letter-spacing: 0.4px;
+      color: var(--fg-mute);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      user-select: none;
+    }
+    .tab:hover { color: var(--fg-dim); }
+    .tab.active {
+      color: var(--fg);
+      border-bottom-color: var(--accent);
+    }
+    .tab .badge {
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--warn);
+      margin-left: 6px;
+    }
+
+    .view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .view.active { display: flex; }
+
+    /* code view */
+    .code-shell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: #14171c;
+    }
+    .code-shell .cm-editor {
+      height: 100%;
+      flex: 1;
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+    .code-shell .cm-scroller { font-family: var(--mono); }
+    .code-shell .cm-gutters {
+      background: #161b22;
+      border-right: 1px solid var(--card-edge);
+      color: var(--fg-mute);
+    }
+
+    .code-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      color: var(--fg-mute);
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.6;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .code-empty b { color: var(--fg-dim); }
+
+    .code-banner {
+      padding: 8px 14px;
+      background: rgba(227, 192, 132, 0.08);
+      border-bottom: 1px solid rgba(227, 192, 132, 0.25);
+      color: var(--warn);
+      font-size: 11.5px;
+      display: none;
+      gap: 12px;
+      align-items: center;
+    }
+    .code-banner.show { display: flex; }
+    .code-banner .msg { flex: 1; }
+    .code-banner .act {
+      cursor: pointer;
+      color: var(--fg);
+      text-decoration: underline;
+    }
+    .code-banner.info {
+      background: rgba(111, 202, 177, 0.08);
+      border-bottom-color: rgba(111, 202, 177, 0.25);
+      color: var(--accent);
+    }
+
+    .code-foot {
+      display: flex;
+      gap: 10px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--card-edge);
+      align-items: center;
+    }
+    .code-foot .info {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg-mute);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .code-foot .info.dirty { color: var(--warn); }
+
     /* card picker modal */
     .modal-backdrop {
       position: fixed;
@@ -496,23 +612,52 @@
 
     <section class="work-area">
 
-      <!-- DECK EDITOR -->
+      <!-- DECK / CODE PANE -->
       <div class="pane">
-        <div class="pane-head">
-          <span>Behavior — insert cable</span>
-          <div class="right">
-            <a id="open-in-editor" title="Open project in your code editor">Open in editor ↗</a>
+        <div class="tabs">
+          <div class="tab active" data-view="deck">Deck</div>
+          <div class="tab" data-view="code">
+            Code
+            <span class="badge" id="code-tab-badge" style="display:none;">edited</span>
+          </div>
+          <div style="flex:1;"></div>
+          <div class="tab" id="open-in-editor" title="Open project in your external code editor (VS Code, etc.)">Open externally ↗</div>
+        </div>
+
+        <!-- DECK VIEW -->
+        <div class="view active" id="view-deck">
+          <div class="pane-body" id="deck-body">
+            <div class="deck-empty">Loading deck…</div>
+          </div>
+          <div class="deck-foot">
+            <button class="btn-add" id="btn-add">+ Add behavior</button>
+            <span class="spacer"></span>
+            <span class="saved" id="saved-flag">saved ✓</span>
+            <button class="btn-quiet" id="btn-save">Save</button>
+            <button class="btn-quiet" id="btn-generate">Save & Generate code</button>
           </div>
         </div>
-        <div class="pane-body" id="deck-body">
-          <div class="deck-empty">Loading deck…</div>
-        </div>
-        <div class="deck-foot">
-          <button class="btn-add" id="btn-add">+ Add behavior</button>
-          <span class="spacer"></span>
-          <span class="saved" id="saved-flag">saved ✓</span>
-          <button class="btn-quiet" id="btn-save">Save</button>
-          <button class="btn-quiet" id="btn-generate">Save & Generate code</button>
+
+        <!-- CODE VIEW -->
+        <div class="view" id="view-code">
+          <div class="code-banner" id="code-banner">
+            <span class="msg" id="code-banner-msg"></span>
+            <span class="act" id="code-banner-action">×</span>
+          </div>
+          <div class="code-shell" id="code-shell">
+            <div class="code-empty" id="code-empty" style="display:none;">
+              <div>
+                <b>No policy.py yet.</b><br />
+                Compose a deck and click <b>Save &amp; Generate</b> first,
+                or start typing here to write your own.
+              </div>
+            </div>
+          </div>
+          <div class="code-foot">
+            <span class="info" id="code-info">reflex_policy/policy.py</span>
+            <button class="btn-quiet" id="btn-code-reload" title="Discard changes and reload the file from disk">Reload</button>
+            <button class="btn-quiet" id="btn-code-save">Save</button>
+          </div>
         </div>
       </div>
 
@@ -546,8 +691,39 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
     'use strict';
+
+    // CodeMirror 6 — loaded as ESM from the bundled npm install. RUN_ONCE.sh
+    // installs these. If a fresh repo skipped that step, we fall back to
+    // a plain <textarea> so the Code tab still functions.
+    let CM = null;
+    try {
+      const [
+        stateMod, viewMod, cmdMod, langMod, pyMod, searchMod, autoMod, themeMod,
+      ] = await Promise.all([
+        import('../node_modules/@codemirror/state/dist/index.js'),
+        import('../node_modules/@codemirror/view/dist/index.js'),
+        import('../node_modules/@codemirror/commands/dist/index.js'),
+        import('../node_modules/@codemirror/language/dist/index.js'),
+        import('../node_modules/@codemirror/lang-python/dist/index.js'),
+        import('../node_modules/@codemirror/search/dist/index.js'),
+        import('../node_modules/@codemirror/autocomplete/dist/index.js'),
+        import('../node_modules/@codemirror/theme-one-dark/dist/index.js'),
+      ]);
+      CM = {
+        state: stateMod,
+        view: viewMod,
+        cmd: cmdMod,
+        lang: langMod,
+        py: pyMod,
+        search: searchMod,
+        auto: autoMod,
+        theme: themeMod,
+      };
+    } catch (e) {
+      console.warn('[operator] CodeMirror not available — falling back to textarea:', e);
+    }
 
     // ── load project ───────────────────────────────────────────────
     const project = window.workbench.getActiveProject();
@@ -868,6 +1044,16 @@
     });
 
     document.getElementById('btn-generate').addEventListener('click', async () => {
+      // If there are unsaved hand edits in the Code view, warn before
+      // overwriting them.
+      if (codeEditor?.dirty) {
+        const ok = confirm(
+          'You have unsaved hand-edits in the Code view that will be ' +
+          'overwritten by "Save & Generate".\n\n' +
+          'Click OK to overwrite, or Cancel to keep your code.'
+        );
+        if (!ok) return;
+      }
       const cleanDeck = stripExpanded(deck);
       const saveRes = await window.workbench.deckSave(project.path, cleanDeck);
       if (saveRes?.error) {
@@ -882,6 +1068,9 @@
       appendLog('[workbench] deck saved + policy.py generated', 'system');
       (genRes.targets || []).forEach(t => appendLog('  ↳ ' + t, 'system'));
       markClean();
+
+      // refresh the Code view so it shows the freshly-generated file
+      if (codeEditor) await reloadPolicyIntoEditor({ silent: true });
     });
 
     function stripExpanded(d) {
@@ -894,6 +1083,243 @@
         })),
       };
     }
+
+    // ── tab switching (Deck / Code) ────────────────────────────────
+    document.querySelectorAll('.tab[data-view]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const which = tab.dataset.view;
+        document.querySelectorAll('.tab[data-view]').forEach(t => t.classList.toggle('active', t === tab));
+        document.getElementById('view-deck').classList.toggle('active', which === 'deck');
+        document.getElementById('view-code').classList.toggle('active', which === 'code');
+        if (which === 'code') {
+          // refresh editor view in case the file changed externally
+          // (e.g. user just clicked Save & Generate). Keeps content
+          // accurate when switching tabs.
+          if (codeEditor && !codeEditor.dirty) {
+            reloadPolicyIntoEditor({ silent: true });
+          }
+          if (codeEditor && codeEditor.cmView) codeEditor.cmView.focus();
+          else if (codeEditor && codeEditor.textarea) codeEditor.textarea.focus();
+        }
+      });
+    });
+
+    // ── code editor state ──────────────────────────────────────────
+    let codeEditor = null;          // { setValue, getValue, dirty, mtimeMs, ... }
+    const codeShell = document.getElementById('code-shell');
+    const codeEmpty = document.getElementById('code-empty');
+    const codeBanner = document.getElementById('code-banner');
+    const codeBannerMsg = document.getElementById('code-banner-msg');
+    const codeBannerAction = document.getElementById('code-banner-action');
+    const codeInfo = document.getElementById('code-info');
+    const codeTabBadge = document.getElementById('code-tab-badge');
+
+    function setCodeBanner(msg, klass = 'info', actionLabel = '×', onAction = () => hideCodeBanner()) {
+      codeBannerMsg.textContent = msg;
+      codeBanner.className = 'code-banner show ' + klass;
+      codeBannerAction.textContent = actionLabel;
+      codeBannerAction.onclick = onAction;
+    }
+    function hideCodeBanner() { codeBanner.className = 'code-banner'; }
+
+    function markCodeDirty(dirty) {
+      if (!codeEditor) return;
+      codeEditor.dirty = dirty;
+      codeTabBadge.style.display = dirty ? 'inline' : 'none';
+      codeInfo.classList.toggle('dirty', dirty);
+      codeInfo.textContent = dirty
+        ? 'reflex_policy/policy.py · unsaved changes'
+        : 'reflex_policy/policy.py';
+    }
+
+    async function initCodeEditor() {
+      const res = await window.workbench.policyRead(project.path);
+      if (res?.error) {
+        codeShell.innerHTML = '';
+        codeEmpty.style.display = 'flex';
+        codeEmpty.querySelector('div').innerHTML = `<b>Couldn't load policy.py.</b><br />${escapeHtml(res.error)}`;
+        codeShell.appendChild(codeEmpty);
+        return;
+      }
+      const initialText = res.exists ? res.text : '';
+      const mtimeMs = res.exists ? res.mtimeMs : null;
+
+      if (CM) {
+        // CodeMirror 6 path — full editor
+        const { EditorState } = CM.state;
+        const { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } = CM.view;
+        const { defaultKeymap, history, historyKeymap, indentWithTab } = CM.cmd;
+        const { python } = CM.py;
+        const { syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInput } = CM.lang;
+        const { searchKeymap, highlightSelectionMatches } = CM.search;
+        const { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } = CM.auto;
+        const { oneDark } = CM.theme;
+
+        // wipe shell, mount the editor
+        codeShell.innerHTML = '';
+        codeEmpty.style.display = 'none';
+
+        const updateListener = EditorView.updateListener.of((upd) => {
+          if (upd.docChanged) markCodeDirty(true);
+        });
+
+        const state = EditorState.create({
+          doc: initialText,
+          extensions: [
+            lineNumbers(),
+            highlightActiveLine(),
+            drawSelection(),
+            history(),
+            indentOnInput(),
+            bracketMatching(),
+            closeBrackets(),
+            autocompletion(),
+            highlightSelectionMatches(),
+            syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+            python(),
+            oneDark,
+            keymap.of([
+              ...closeBracketsKeymap,
+              ...defaultKeymap,
+              ...searchKeymap,
+              ...historyKeymap,
+              ...completionKeymap,
+              indentWithTab,
+              {
+                key: 'Mod-s',
+                preventDefault: true,
+                run: () => { savePolicy(); return true; },
+              },
+            ]),
+            EditorView.theme({
+              '&': { height: '100%' },
+              '.cm-scroller': { overflow: 'auto' },
+            }),
+            updateListener,
+          ],
+        });
+
+        const cmView = new EditorView({
+          state,
+          parent: codeShell,
+        });
+
+        codeEditor = {
+          kind: 'codemirror',
+          cmView,
+          getValue: () => cmView.state.doc.toString(),
+          setValue: (text) => {
+            cmView.dispatch({
+              changes: { from: 0, to: cmView.state.doc.length, insert: text },
+            });
+          },
+          dirty: false,
+          mtimeMs,
+        };
+      } else {
+        // textarea fallback — basic but functional
+        codeShell.innerHTML = '';
+        codeEmpty.style.display = 'none';
+        const ta = document.createElement('textarea');
+        ta.value = initialText;
+        ta.spellcheck = false;
+        Object.assign(ta.style, {
+          flex: '1',
+          width: '100%',
+          height: '100%',
+          background: '#14171c',
+          color: '#eef2f6',
+          border: 'none',
+          outline: 'none',
+          padding: '14px 16px',
+          fontFamily: 'var(--mono)',
+          fontSize: '12.5px',
+          resize: 'none',
+        });
+        ta.addEventListener('input', () => markCodeDirty(true));
+        ta.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            savePolicy();
+          }
+        });
+        codeShell.appendChild(ta);
+
+        codeEditor = {
+          kind: 'textarea',
+          textarea: ta,
+          getValue: () => ta.value,
+          setValue: (text) => { ta.value = text; },
+          dirty: false,
+          mtimeMs,
+        };
+
+        setCodeBanner(
+          'Using basic editor (CodeMirror not installed). Run RUN_ONCE.sh to enable syntax highlighting.',
+          '', '×',
+        );
+      }
+
+      markCodeDirty(false);
+      if (res.exists && res.isGenerated) {
+        // benign info — let user know what they're editing
+        setCodeBanner(
+          'This file is currently generated from your deck. Hand-edits here will be overwritten the next time you click "Save & Generate" in the Deck tab.',
+          'info', '×',
+        );
+      }
+    }
+
+    async function reloadPolicyIntoEditor({ silent = false } = {}) {
+      const res = await window.workbench.policyRead(project.path);
+      if (!res || res.error) return;
+      if (!res.exists) {
+        codeEditor.setValue('');
+        codeEditor.mtimeMs = null;
+      } else {
+        codeEditor.setValue(res.text);
+        codeEditor.mtimeMs = res.mtimeMs;
+      }
+      markCodeDirty(false);
+      if (!silent) {
+        setCodeBanner('Reloaded from disk.', 'info');
+        setTimeout(hideCodeBanner, 1800);
+      }
+    }
+
+    async function savePolicy({ force = false } = {}) {
+      if (!codeEditor) return;
+      const text = codeEditor.getValue();
+      const res = await window.workbench.policyWrite(project.path, text, {
+        expectedMtimeMs: codeEditor.mtimeMs,
+        force,
+      });
+      if (res?.error) {
+        appendLog('[workbench] policy save failed: ' + res.error, 'error');
+        return;
+      }
+      if (res?.conflict) {
+        setCodeBanner(
+          'policy.py changed on disk since you loaded it.',
+          '', 'force-save',
+          () => savePolicy({ force: true }),
+        );
+        return;
+      }
+      codeEditor.mtimeMs = res.mtimeMs;
+      markCodeDirty(false);
+      setCodeBanner('saved · ' + res.file, 'info');
+      setTimeout(hideCodeBanner, 1500);
+      appendLog('[workbench] saved ' + res.file, 'system');
+    }
+
+    document.getElementById('btn-code-save').addEventListener('click', () => savePolicy());
+    document.getElementById('btn-code-reload').addEventListener('click', async () => {
+      if (codeEditor?.dirty) {
+        if (!confirm('Discard unsaved changes and reload from disk?')) return;
+      }
+      reloadPolicyIntoEditor();
+    });
 
     // ── boot ───────────────────────────────────────────────────────
     (async () => {
@@ -919,6 +1345,9 @@
         };
       }
       renderDeck();
+
+      // ── code editor (CodeMirror or textarea fallback) ───────────
+      await initCodeEditor();
 
       // reattach to running process if any
       const s = await window.workbench.runStatus();
