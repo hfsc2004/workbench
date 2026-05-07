@@ -192,12 +192,8 @@
         row.addEventListener('click', () => {
           const i = Number(row.dataset.i);
           const p = list[i];
-          // for now: stash and navigate to a project view (which doesn't
-          // exist yet). Onboarding wizard exists; operator view will be
-          // added when project loading is wired up to actually run.
-          sessionStorage.setItem('workbench:openProject', JSON.stringify(p));
-          // TODO replace with operator.html when that exists
-          alert('Opening project: ' + p.path + '\n\n(Operator view coming next.)');
+          window.workbench.setActiveProject(p);
+          window.workbench.navigate('operator.html');
         });
       });
     }
@@ -217,11 +213,8 @@
         alert(result.error);
         return;
       }
-      // refresh recents and pretend the user clicked the new entry
-      const list = await window.workbench.listProjects();
-      renderRecents(list);
-      sessionStorage.setItem('workbench:openProject', JSON.stringify(result));
-      alert('Opening project: ' + result.path + '\n\n(Operator view coming next.)');
+      window.workbench.setActiveProject(result);
+      window.workbench.navigate('operator.html');
     });
 
     document.getElementById('new-project').addEventListener('click', () => {

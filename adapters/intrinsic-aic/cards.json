@@ -1,0 +1,242 @@
+{
+  "_comment": [
+    "Card library for the intrinsic-aic adapter.",
+    "Each card is a named, parameterized behavior the user can drag onto",
+    "their deck. Workbench generates Python from the deck.",
+    "",
+    "A card has:",
+    "  id           machine-readable identifier",
+    "  name         human-readable label",
+    "  summary      one-line description for the picker",
+    "  description  longer explanation for the parameter editor",
+    "  params       ordered list of typed parameters",
+    "  emit         Python template — gets parameters interpolated as {{param}}",
+    "",
+    "The emit template assumes the policy class extends aic_model.policy.Policy",
+    "and has access to self.set_pose_target, self.time_now, self.sleep_for, and",
+    "self.get_logger. The whole deck is wrapped in insert_cable(self, task,",
+    "get_observation, move_robot, send_feedback)."
+  ],
+
+  "version": "0.1",
+
+  "globals": {
+    "params": [
+      {
+        "id": "max_force_n",
+        "label": "Max force (N)",
+        "type": "number",
+        "default": 18,
+        "min": 1, "max": 30,
+        "description": "Hard ceiling. If wrist force ever exceeds this, the safety gate aborts the run."
+      },
+      {
+        "id": "tick_hz",
+        "label": "Decision rate (Hz)",
+        "type": "number",
+        "default": 20,
+        "min": 5, "max": 50,
+        "description": "How often the policy reads observations and emits commands. AIC observations come at 20 Hz."
+      }
+    ]
+  },
+
+  "cards": [
+    {
+      "id": "approach",
+      "name": "Approach",
+      "summary": "Move TCP to a target pose at a chosen speed.",
+      "description": "The arm moves the cable's tool-center-point to a target pose, slowing as it nears the target. Use this to get above the port before descending.",
+      "params": [
+        { "id": "x", "label": "X (m)", "type": "number", "default": -0.4, "min": -1, "max": 1 },
+        { "id": "y", "label": "Y (m)", "type": "number", "default":  0.45, "min": -1, "max": 1 },
+        { "id": "z", "label": "Z (m)", "type": "number", "default":  0.30, "min":  0, "max": 1.5,
+          "description": "Higher Z is further above the workcell. Stay safely above the board first." },
+        { "id": "duration_s", "label": "Time budget (s)", "type": "number", "default": 4, "min": 0.5, "max": 30,
+          "description": "How long to keep moving toward the target before giving up." }
+      ],
+      "emit": [
+        "send_feedback('[deck] approach to ({{x}}, {{y}}, {{z}})')",
+        "_t0 = self.time_now()",
+        "_target = Pose(",
+        "    position=Point(x={{x}}, y={{y}}, z={{z}}),",
+        "    orientation=Quaternion(x=1.0, y=0.0, z=0.0, w=0.0),",
+        ")",
+        "while (self.time_now() - _t0) < Duration(seconds={{duration_s}}):",
+        "    self.set_pose_target(move_robot=move_robot, pose=_target)",
+        "    self.sleep_for(1.0 / {{tick_hz}})"
+      ]
+    },
+
+    {
+      "id": "descend",
+      "name": "Descend",
+      "summary": "Move straight down. Stop on force or distance limit.",
+      "description": "Lower the gripper toward the workcell. Stop early if wrist force exceeds the threshold (you've made contact) or after the depth limit is reached.",
+      "params": [
+        { "id": "step_mm", "label": "Step size (mm)", "type": "number", "default": 0.5, "min": 0.1, "max": 5 },
+        { "id": "max_depth_mm", "label": "Max depth (mm)", "type": "number", "default": 30, "min": 1, "max": 200 },
+        { "id": "force_stop_n", "label": "Stop on force (N)", "type": "number", "default": 5, "min": 0.5, "max": 20,
+          "description": "Halt descent when wrist force exceeds this — assumed contact." }
+      ],
+      "emit": [
+        "send_feedback('[deck] descend until force > {{force_stop_n}} N or {{max_depth_mm}} mm')",
+        "_descended_mm = 0.0",
+        "_step_m = {{step_mm}} / 1000.0",
+        "while _descended_mm < {{max_depth_mm}}:",
+        "    obs = get_observation()",
+        "    if obs is None:",
+        "        self.sleep_for(1.0 / {{tick_hz}}); continue",
+        "    _w = obs.wrist_wrench.wrench.force",
+        "    _fmag = (_w.x*_w.x + _w.y*_w.y + _w.z*_w.z) ** 0.5",
+        "    if _fmag > {{force_stop_n}}:",
+        "        send_feedback(f'[deck] descend: contact at {_descended_mm:.1f} mm, fmag={_fmag:.2f} N')",
+        "        break",
+        "    _cs = obs.controller_state.actual_tcp_pose",
+        "    _next = Pose(",
+        "        position=Point(x=_cs.position.x, y=_cs.position.y, z=_cs.position.z - _step_m),",
+        "        orientation=_cs.orientation,",
+        "    )",
+        "    self.set_pose_target(move_robot=move_robot, pose=_next)",
+        "    _descended_mm += {{step_mm}}",
+        "    self.sleep_for(1.0 / {{tick_hz}})"
+      ]
+    },
+
+    {
+      "id": "wiggle",
+      "name": "Wiggle",
+      "summary": "Small lateral oscillation to find the port edge.",
+      "description": "Move the gripper side-to-side by a small amount while keeping vertical position. Use after contact to feel for the port opening.",
+      "params": [
+        { "id": "distance_mm", "label": "Distance (mm)", "type": "number", "default": 0.5, "min": 0.05, "max": 3 },
+        { "id": "duration_s", "label": "Duration (s)", "type": "number", "default": 3, "min": 0.5, "max": 15 },
+        { "id": "axis", "label": "Axis", "type": "choice", "default": "x", "choices": ["x", "y", "both"] }
+      ],
+      "emit": [
+        "send_feedback('[deck] wiggle ±{{distance_mm}} mm on {{axis}}')",
+        "_t0 = self.time_now()",
+        "_amp_m = {{distance_mm}} / 1000.0",
+        "_axis = '{{axis}}'",
+        "obs = get_observation()",
+        "if obs is not None:",
+        "    _base = obs.controller_state.actual_tcp_pose",
+        "    _bx, _by, _bz, _bo = _base.position.x, _base.position.y, _base.position.z, _base.orientation",
+        "    while (self.time_now() - _t0) < Duration(seconds={{duration_s}}):",
+        "        _phase = ((self.time_now() - _t0).nanoseconds / 1e9) * 2.0",
+        "        _dx = _amp_m * (1.0 if _axis in ('x', 'both') else 0.0)",
+        "        _dy = _amp_m * (1.0 if _axis in ('y', 'both') else 0.0)",
+        "        import math",
+        "        _ox = _dx * math.sin(_phase * math.pi)",
+        "        _oy = _dy * math.cos(_phase * math.pi)",
+        "        _next = Pose(",
+        "            position=Point(x=_bx + _ox, y=_by + _oy, z=_bz),",
+        "            orientation=_bo,",
+        "        )",
+        "        self.set_pose_target(move_robot=move_robot, pose=_next)",
+        "        self.sleep_for(1.0 / {{tick_hz}})"
+      ]
+    },
+
+    {
+      "id": "search",
+      "name": "Spiral search",
+      "summary": "Outward spiral pattern to locate a port opening.",
+      "description": "Move the gripper in a spiral pattern in the X-Y plane while keeping vertical position. Stop when force drops (gripper has slipped into the port).",
+      "params": [
+        { "id": "radius_mm", "label": "Spiral radius (mm)", "type": "number", "default": 4, "min": 0.5, "max": 20 },
+        { "id": "duration_s", "label": "Time limit (s)", "type": "number", "default": 8, "min": 1, "max": 30 },
+        { "id": "force_drop_n", "label": "Stop when force drops below (N)", "type": "number", "default": 1, "min": 0, "max": 8 }
+      ],
+      "emit": [
+        "send_feedback('[deck] spiral search radius={{radius_mm}} mm')",
+        "_t0 = self.time_now()",
+        "_R_m = {{radius_mm}} / 1000.0",
+        "import math",
+        "obs = get_observation()",
+        "if obs is not None:",
+        "    _b = obs.controller_state.actual_tcp_pose",
+        "    _bx, _by, _bz, _bo = _b.position.x, _b.position.y, _b.position.z, _b.orientation",
+        "    while (self.time_now() - _t0) < Duration(seconds={{duration_s}}):",
+        "        _t = (self.time_now() - _t0).nanoseconds / 1e9",
+        "        _r = _R_m * (_t / {{duration_s}})",
+        "        _theta = _t * 4.0",
+        "        _ox = _r * math.cos(_theta)",
+        "        _oy = _r * math.sin(_theta)",
+        "        obs = get_observation()",
+        "        if obs is not None:",
+        "            _w = obs.wrist_wrench.wrench.force",
+        "            _fmag = (_w.x*_w.x + _w.y*_w.y + _w.z*_w.z) ** 0.5",
+        "            if _fmag < {{force_drop_n}}:",
+        "                send_feedback(f'[deck] search: force dropped to {_fmag:.2f} N — possible port edge')",
+        "                break",
+        "        _next = Pose(",
+        "            position=Point(x=_bx + _ox, y=_by + _oy, z=_bz),",
+        "            orientation=_bo,",
+        "        )",
+        "        self.set_pose_target(move_robot=move_robot, pose=_next)",
+        "        self.sleep_for(1.0 / {{tick_hz}})"
+      ]
+    },
+
+    {
+      "id": "back_off",
+      "name": "Back off",
+      "summary": "Retreat upward by a fixed distance.",
+      "description": "Move straight up by the given distance. Use as a recovery action after excessive force or to clear an obstacle.",
+      "params": [
+        { "id": "distance_mm", "label": "Distance (mm)", "type": "number", "default": 5, "min": 0.5, "max": 50 },
+        { "id": "duration_s", "label": "Time budget (s)", "type": "number", "default": 1.5, "min": 0.3, "max": 10 }
+      ],
+      "emit": [
+        "send_feedback('[deck] back off by {{distance_mm}} mm')",
+        "obs = get_observation()",
+        "if obs is not None:",
+        "    _b = obs.controller_state.actual_tcp_pose",
+        "    _target = Pose(",
+        "        position=Point(x=_b.position.x, y=_b.position.y, z=_b.position.z + {{distance_mm}} / 1000.0),",
+        "        orientation=_b.orientation,",
+        "    )",
+        "    _t0 = self.time_now()",
+        "    while (self.time_now() - _t0) < Duration(seconds={{duration_s}}):",
+        "        self.set_pose_target(move_robot=move_robot, pose=_target)",
+        "        self.sleep_for(1.0 / {{tick_hz}})"
+      ]
+    },
+
+    {
+      "id": "insert",
+      "name": "Insert",
+      "summary": "Slow descent with strict force limit, intended for the actual insertion.",
+      "description": "Like Descend but tuned for the final insertion: smaller steps, lower force ceiling, and explicit success when target depth is reached.",
+      "params": [
+        { "id": "depth_mm", "label": "Target depth (mm)", "type": "number", "default": 18, "min": 5, "max": 50 },
+        { "id": "step_mm", "label": "Step size (mm)", "type": "number", "default": 0.2, "min": 0.05, "max": 2 },
+        { "id": "force_limit_n", "label": "Force ceiling (N)", "type": "number", "default": 10, "min": 1, "max": 18 }
+      ],
+      "emit": [
+        "send_feedback('[deck] insert to {{depth_mm}} mm, force limit {{force_limit_n}} N')",
+        "_inserted_mm = 0.0",
+        "_step_m = {{step_mm}} / 1000.0",
+        "while _inserted_mm < {{depth_mm}}:",
+        "    obs = get_observation()",
+        "    if obs is None:",
+        "        self.sleep_for(1.0 / {{tick_hz}}); continue",
+        "    _w = obs.wrist_wrench.wrench.force",
+        "    _fmag = (_w.x*_w.x + _w.y*_w.y + _w.z*_w.z) ** 0.5",
+        "    if _fmag > {{force_limit_n}}:",
+        "        send_feedback(f'[deck] insert: force {_fmag:.2f} N exceeded {{force_limit_n}} N — backing off')",
+        "        break",
+        "    _cs = obs.controller_state.actual_tcp_pose",
+        "    _next = Pose(",
+        "        position=Point(x=_cs.position.x, y=_cs.position.y, z=_cs.position.z - _step_m),",
+        "        orientation=_cs.orientation,",
+        "    )",
+        "    self.set_pose_target(move_robot=move_robot, pose=_next)",
+        "    _inserted_mm += {{step_mm}}",
+        "    self.sleep_for(1.0 / {{tick_hz}})",
+        "send_feedback(f'[deck] insert: reached {_inserted_mm:.1f} mm')"
+      ]
+    }
+  ]
+}
