@@ -1,0 +1,83 @@
+# intrinsic-aic adapter pack manifest
+#
+# Workbench reads this when a project declares `adapter: intrinsic-aic`.
+# The adapter is a thin pack — five narrow responsibilities, no embedded
+# build/log/storage subsystems. Workbench's verbs do the heavy lifting.
+
+name: intrinsic-aic
+version: 0.1.0
+description: |
+  Adapter for the Intrinsic AI for Industry Challenge (AIC).
+  Wraps ROS 2 Kilted + Gazebo + AIC engine + Zenoh for local development
+  and competition submission.
+
+# Modes this adapter supports.
+modes:
+  play:
+    script: play.sh
+    needs:
+      - PSF_AIC_WS
+    description: |
+      Sim + controllers + task board + cable on gripper. No engine, no
+      scoring. Use this while writing and iterating on your policy.
+
+  # eval and submit modes will land later — for now they're handled by
+  # docker-compose path inherited from the AIC repo. Documented here so
+  # the adapter manifest is honest about what's missing.
+  eval:
+    status: not-yet-managed
+    fallback: |
+      cd "$PSF_AIC_WS" && docker compose -f docker/docker-compose.yaml up
+  submit:
+    status: not-yet-managed
+    fallback: |
+      Use AIC-Submission/scripts/build.sh and push_ecr.sh for now.
+
+# Configuration knobs an AIC project can set in psf.project.yaml under
+# `adapter_config:` — these become PSF_AIC_* env vars to the launcher.
+config:
+  aic_ws:
+    description: Path to the cloned AIC pixi workspace
+    required: true
+    env: PSF_AIC_WS
+
+  gui:
+    description: Show Gazebo GUI window
+    default: true
+    env: PSF_AIC_GUI
+
+  rviz:
+    description: Show RViz window
+    default: true
+    env: PSF_AIC_RVIZ
+
+  ground_truth:
+    description: |
+      Expose ground-truth TF data in Play mode. Useful for development
+      and debugging — but the eval runs with this OFF, so policies that
+      rely on it during play will fail under evaluation.
+    default: true
+    env: PSF_AIC_GROUND_TRUTH
+
+  spawn_task_board:
+    default: true
+    env: PSF_AIC_SPAWN_TASK_BOARD
+
+  spawn_cable:
+    default: true
+    env: PSF_AIC_SPAWN_CABLE
+
+  attach_cable_to_gripper:
+    default: true
+    env: PSF_AIC_ATTACH_CABLE
+
+  cable_type:
+    description: Cable model used at spawn time
+    default: sfp_sc_cable
+    choices: [sfp_sc_cable, sfp_sc_cable_reversed]
+    env: PSF_AIC_CABLE_TYPE
+
+# Diagnostic rules contributed to Workbench's Log Intelligence (later).
+# Empty for now; will populate as we capture lessons during development.
+diagnostics:
+  rules: []

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node / web tooling (mocks may eventually pull these)
+node_modules/
+.npm/
+package-lock.json
+
+# Editor / OS noise
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local secrets — never commit
+.env
+.env.local
+*.pem
+*.key
+
+# Workbench runtime data (user-generated)
+generated/
+.psf-cache/
+.psf-state/
+*.log

@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PSF Workbench — Onboarding</title>
+  <style>
+    :root {
+      --bg: #14171c;
+      --bg-2: #1a1e25;
+      --card: #1d222a;
+      --card-edge: #262c36;
+      --fg: #eef2f6;
+      --fg-dim: #aab3bf;
+      --fg-mute: #6f7783;
+      --accent: #6fcab1;
+      --accent-2: #88d5be;
+      --good: #6fcab1;
+      --warn: #e3c084;
+      --bad: #e07c79;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter,
+              "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(1200px 600px at 50% -100px, #1c2230 0%, var(--bg) 60%);
+      color: var(--fg);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* fixed brand */
+    .brand {
+      position: fixed;
+      top: 18px;
+      left: 22px;
+      color: var(--fg-mute);
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      z-index: 5;
+    }
+    .brand b { color: var(--fg-dim); font-weight: 600; }
+
+    /* step indicator at the top */
+    .steps {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 0;
+      font-size: 12px;
+      color: var(--fg-mute);
+      z-index: 5;
+    }
+    .steps .step {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+    }
+    .steps .step .num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid var(--card-edge);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--fg-mute);
+    }
+    .steps .step.active .num {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(111, 202, 177, 0.12);
+    }
+    .steps .step.done .num {
+      border-color: var(--accent);
+      color: var(--bg);
+      background: var(--accent);
+    }
+    .steps .step.active .label, .steps .step.done .label { color: var(--fg-dim); }
+    .steps .step .label { letter-spacing: 0.3px; }
+    .steps .sep {
+      width: 30px;
+      height: 1px;
+      background: var(--card-edge);
+    }
+
+    /* corner toggle (jump to running view, etc.) */
+    .corner {
+      position: fixed;
+      bottom: 20px;
+      right: 22px;
+      color: var(--fg-mute);
+      font-size: 12px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      padding: 6px 12px;
+      border: 1px solid var(--card-edge);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.02);
+      text-decoration: none;
+      z-index: 5;
+    }
+    .corner:hover {
+      color: var(--fg-dim);
+      border-color: rgba(255,255,255,0.10);
+    }
+
+    /* the centered card */
+    .stage {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 96px 24px 60px;
+    }
+    .card {
+      width: 100%;
+      max-width: 720px;
+      background: linear-gradient(180deg, var(--card) 0%, var(--bg-2) 100%);
+      border: 1px solid var(--card-edge);
+      border-radius: 14px;
+      padding: 38px 44px 32px;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.02) inset,
+        0 12px 40px rgba(0,0,0,0.35);
+    }
+
+    /* generic typography inside card */
+    .eyebrow {
+      color: var(--accent);
+      font-size: 11px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    h1.title {
+      font-size: 24px;
+      font-weight: 500;
+      margin: 0 0 14px;
+      letter-spacing: -0.2px;
+    }
+    p.lede {
+      color: var(--fg-dim);
+      margin: 0 0 26px;
+      max-width: 560px;
+    }
+    p.lede b { color: var(--fg); font-weight: 500; }
+
+    /* radio cards (for the project-template / competition pickers) */
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .option {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--card-edge);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.015);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .option:hover {
+      border-color: rgba(111, 202, 177, 0.25);
+    }
+    .option.selected {
+      border-color: var(--accent);
+      background: rgba(111, 202, 177, 0.06);
+    }
+    .option .radio {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid var(--fg-mute);
+      margin-top: 3px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .option.selected .radio {
+      border-color: var(--accent);
+    }
+    .option.selected .radio::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .option .body { flex: 1; }
+    .option .opt-title {
+      font-size: 15px;
+      color: var(--fg);
+      margin-bottom: 2px;
+    }
+    .option .opt-sub {
+      font-size: 12.5px;
+      color: var(--fg-mute);
+    }
+
+    /* drive picker (step 1) */
+    .drive-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .drive-pick {
+      flex: 1;
+      padding: 14px 16px;
+      border: 1px solid var(--card-edge);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.015);
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--fg-dim);
+      cursor: pointer;
+    }
+    .drive-pick.selected {
+      border-color: var(--accent);
+      background: rgba(111, 202, 177, 0.06);
+      color: var(--fg);
+    }
+    .drive-pick .meta {
+      color: var(--fg-mute);
+      font-size: 11px;
+      margin-top: 4px;
+    }
+    .drive-other {
+      color: var(--fg-mute);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 8px 0;
+      display: inline-block;
+    }
+    .drive-other:hover { color: var(--fg-dim); }
+
+    /* install plan list (step 3) */
+    .plan {
+      margin: 12px 0 24px;
+      border: 1px solid var(--card-edge);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .plan-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--card-edge);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    .plan-row:last-child { border-bottom: none; }
+    .plan-row .stat {
+      width: 18px;
+      flex-shrink: 0;
+      text-align: center;
+    }
+    .plan-row .stat.ok { color: var(--good); }
+    .plan-row .stat.todo { color: var(--fg-mute); }
+    .plan-row .stat.busy { color: var(--accent); }
+    .plan-row .name { flex: 1; color: var(--fg); }
+    .plan-row .name .sub {
+      color: var(--fg-mute);
+      font-size: 11px;
+      font-family: var(--sans);
+      display: block;
+      margin-top: 2px;
+    }
+    .plan-row .size {
+      color: var(--fg-mute);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .plan-totals {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.025);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--fg-dim);
+      border-top: 1px solid var(--card-edge);
+    }
+
+    /* primary action row */
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .actions .back {
+      color: var(--fg-mute);
+      font-size: 13px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .actions .back:hover { color: var(--fg-dim); }
+    .actions .spacer { flex: 1; }
+    .btn-primary {
+      background: var(--accent);
+      color: #0d1217;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: var(--sans);
+      cursor: pointer;
+      letter-spacing: 0.3px;
+    }
+    .btn-primary:hover { background: var(--accent-2); }
+    .btn-primary:disabled {
+      background: rgba(111, 202, 177, 0.30);
+      color: rgba(13, 18, 23, 0.55);
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--fg-dim);
+      border: 1px solid var(--card-edge);
+      padding: 9px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: var(--sans);
+      cursor: pointer;
+    }
+    .btn-secondary:hover {
+      color: var(--fg);
+      border-color: rgba(255,255,255,0.18);
+    }
+
+    /* progress (step 4) */
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--card-edge);
+      font-size: 13px;
+    }
+    .progress-row:last-child { border-bottom: none; }
+    .progress-row .stat {
+      width: 22px;
+      flex-shrink: 0;
+      text-align: center;
+      font-family: var(--mono);
+    }
+    .progress-row .stat.ok { color: var(--good); }
+    .progress-row .stat.todo { color: var(--fg-mute); }
+    .progress-row .stat.busy { color: var(--accent); }
+    .progress-row .name { flex: 1; color: var(--fg); }
+    .progress-row.todo .name { color: var(--fg-mute); }
+    .progress-row .detail {
+      color: var(--fg-mute);
+      font-family: var(--mono);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .progress-row .bar-wrap {
+      width: 180px;
+      height: 4px;
+      background: rgba(111, 202, 177, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .progress-row .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, rgba(111, 202, 177, 0.55), var(--accent));
+      width: 0%;
+      transition: width 0.4s linear;
+    }
+    .progress-summary {
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.025);
+      font-size: 12px;
+      color: var(--fg-dim);
+      border-top: 1px solid var(--card-edge);
+      display: flex;
+      justify-content: space-between;
+    }
+    .progress-summary .interpreter::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 6px;
+      vertical-align: 1px;
+      animation: breath 2.4s ease-in-out infinite;
+    }
+    @keyframes breath {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    /* the spinner used in busy plan/progress rows */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(111, 202, 177, 0.25);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* finished (step 5) */
+    .ready-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(111, 202, 177, 0.12);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin-bottom: 18px;
+    }
+    .ready-list {
+      list-style: none;
+      padding: 0;
+      margin: 18px 0 24px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--fg-dim);
+    }
+    .ready-list li {
+      padding: 6px 0;
+      display: flex;
+      gap: 12px;
+    }
+    .ready-list .lab { color: var(--fg-mute); flex-shrink: 0; min-width: 110px; }
+    .ready-list .val { color: var(--fg); }
+    .ready-list .val.good { color: var(--good); }
+
+    /* small hint at bottom of cards */
+    .hint {
+      color: var(--fg-mute);
+      font-size: 12px;
+      margin-top: -10px;
+      margin-bottom: 22px;
+    }
+    .hint code {
+      font-family: var(--mono);
+      color: var(--fg-dim);
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="brand"><b>PSF Workbench</b></div>
+
+<div class="steps" id="steps">
+  <div class="step active" data-step="0"><span class="num">1</span><span class="label">Storage</span></div>
+  <span class="sep"></span>
+  <div class="step" data-step="1"><span class="num">2</span><span class="label">Project</span></div>
+  <span class="sep"></span>
+  <div class="step" data-step="2"><span class="num">3</span><span class="label">Competition</span></div>
+  <span class="sep"></span>
+  <div class="step" data-step="3"><span class="num">4</span><span class="label">Install</span></div>
+  <span class="sep"></span>
+  <div class="step" data-step="4"><span class="num">5</span><span class="label">Ready</span></div>
+</div>
+
+<div class="stage">
+  <article class="card" id="card">
+    <!-- card contents are rendered by JS based on currentStep -->
+  </article>
+</div>
+
+<a class="corner" id="cornerLink" href="mock2.html">Operator view ↗</a>
+
+<script>
+"use strict";
+
+// ── state ────────────────────────────────────────────────────
+const state = {
+  step: 0,
+  drive: 'big',        // 'big' | 'home'
+  intent: 'compete',   // 'compete' | 'develop' | 'demo' | 'empty'
+  competition: 'aic',  // 'aic' | 'robocup' | 'icra' | 'custom'
+  installRunning: false,
+  installPhase: 0,     // 0..N
+  installDownloadProgress: 0, // 0..1 for the AIC eval pull
+};
+
+const card = document.getElementById('card');
+
+// ── step renderers ───────────────────────────────────────────
+
+function render() {
+  // update the step indicator
+  document.querySelectorAll('.steps .step').forEach((el, i) => {
+    el.classList.remove('active', 'done');
+    if (i < state.step) el.classList.add('done');
+    if (i === state.step) el.classList.add('active');
+  });
+
+  switch (state.step) {
+    case 0: return renderStorage();
+    case 1: return renderProject();
+    case 2: return renderCompetition();
+    case 3: return renderInstallPlan();
+    case 4: return renderProgress();
+    case 5: return renderReady();
+  }
+}
+
+// step 1 — storage
+function renderStorage() {
+  card.innerHTML = `
+    <div class="eyebrow">Welcome</div>
+    <h1 class="title">Where should robotics data live?</h1>
+    <p class="lede">
+      Workbench will manage Docker, simulators, and project data on your behalf.
+      Pick a drive with at least <b>50 GB free</b>. Workbench will keep all the
+      heavy artifacts here so your system disk stays clean.
+    </p>
+
+    <div class="drive-row">
+      <div class="drive-pick ${state.drive === 'big' ? 'selected' : ''}" data-pick="big">
+        /media/user/Third_4TB
+        <div class="meta">2.0 TB free · ext4 · recommended</div>
+      </div>
+      <div class="drive-pick ${state.drive === 'home' ? 'selected' : ''}" data-pick="home">
+        /home/user
+        <div class="meta">24 GB free · ext4 · ⚠ system drive</div>
+      </div>
+    </div>
+    <a class="drive-other">Choose a different location…</a>
+
+    <p class="hint">
+      Workbench will move Docker and containerd data here automatically.
+      Migration uses a dry-run + verify + rollback flow — your data won't be
+      deleted from the old location until the new one is verified.
+    </p>
+
+    <div class="actions">
+      <span class="spacer"></span>
+      <button class="btn-primary" id="next">Continue</button>
+    </div>
+  `;
+  card.querySelectorAll('.drive-pick').forEach(el => {
+    el.onclick = () => { state.drive = el.dataset.pick; render(); };
+  });
+  document.getElementById('next').onclick = () => { state.step = 1; render(); };
+}
+
+// step 2 — project intent
+function renderProject() {
+  const opts = [
+    { id: 'compete', t: 'Enter a robotics competition', s: 'AIC, RoboCup, ICRA, and others.' },
+    { id: 'develop', t: 'Develop on a robot I have',     s: 'UR, Franka, KUKA, mobile platforms. Real or simulated.' },
+    { id: 'demo',    t: 'Run an industrial demo',        s: 'Pre-built workflows for vision, sorting, inspection.' },
+    { id: 'empty',   t: 'Empty project (advanced)',      s: 'Start from scratch. Pick adapters yourself.' },
+  ];
+  card.innerHTML = `
+    <div class="eyebrow">Step 2 of 5</div>
+    <h1 class="title">What do you want to do?</h1>
+    <p class="lede">Pick the closest match. We'll set up the right adapters and templates for you. You can change later.</p>
+    <div class="options">
+      ${opts.map(o => `
+        <div class="option ${state.intent === o.id ? 'selected' : ''}" data-id="${o.id}">
+          <span class="radio"></span>
+          <div class="body">
+            <div class="opt-title">${o.t}</div>
+            <div class="opt-sub">${o.s}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="actions">
+      <a class="back">Back</a>
+      <span class="spacer"></span>
+      <button class="btn-primary" id="next">Continue</button>
+    </div>
+  `;
+  card.querySelectorAll('.option').forEach(el => {
+    el.onclick = () => { state.intent = el.dataset.id; render(); };
+  });
+  card.querySelector('.back').onclick = () => { state.step = 0; render(); };
+  document.getElementById('next').onclick = () => { state.step = 2; render(); };
+}
+
+// step 3 — competition picker
+function renderCompetition() {
+  const opts = [
+    { id: 'aic',     t: 'Intrinsic AI for Industry Challenge',
+                     s: 'Cable insertion · ROS 2 Kilted + Gazebo · qualification phase open until May 15, 2026.' },
+    { id: 'robocup', t: 'RoboCup Logistics',
+                     s: 'Multi-robot warehouse scenario · simulation-based qualifier.' },
+    { id: 'icra',    t: 'ICRA Challenges',
+                     s: 'Various robotics challenges hosted at ICRA conferences.' },
+    { id: 'custom',  t: 'Custom competition',
+                     s: 'Bring your own URL or repo. Workbench will detect what it needs.' },
+  ];
+  card.innerHTML = `
+    <div class="eyebrow">Step 3 of 5</div>
+    <h1 class="title">Which competition?</h1>
+    <p class="lede">Workbench keeps tested adapter packs for known competitions. Pick yours and we'll fetch a known-good setup.</p>
+    <div class="options">
+      ${opts.map(o => `
+        <div class="option ${state.competition === o.id ? 'selected' : ''}" data-id="${o.id}">
+          <span class="radio"></span>
+          <div class="body">
+            <div class="opt-title">${o.t}</div>
+            <div class="opt-sub">${o.s}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="actions">
+      <a class="back">Back</a>
+      <span class="spacer"></span>
+      <button class="btn-primary" id="next">Continue</button>
+    </div>
+  `;
+  card.querySelectorAll('.option').forEach(el => {
+    el.onclick = () => { state.competition = el.dataset.id; render(); };
+  });
+  card.querySelector('.back').onclick = () => { state.step = 1; render(); };
+  document.getElementById('next').onclick = () => { state.step = 3; render(); };
+}
+
+// step 4 — install plan (the "diff")
+function renderInstallPlan() {
+  const items = [
+    { name: 'Docker engine',
+      sub: 'reachable on host · 29.3.1 · GPU runtime configured',
+      stat: 'ok', size: 'already installed' },
+    { name: 'NVIDIA Container Toolkit',
+      sub: 'enables GPU access for simulators',
+      stat: 'todo', size: '~300 MB' },
+    { name: 'AIC eval image',
+      sub: 'ghcr.io/intrinsic-dev/aic/aic_eval:latest',
+      stat: 'todo', size: '~9.0 GB' },
+    { name: 'ROS 2 Kilted base + AIC SDK',
+      sub: 'pixi-managed environment with policy build tools',
+      stat: 'todo', size: '~4.0 GB' },
+    { name: 'Workbench AIC adapter',
+      sub: 'observation/action mappers, lifecycle, diagnostic rules',
+      stat: 'todo', size: '~50 MB' },
+    { name: 'Reference policy template',
+      sub: 'starting point — you can edit or replace it later',
+      stat: 'todo', size: '< 1 MB' },
+  ];
+  card.innerHTML = `
+    <div class="eyebrow">Step 4 of 5</div>
+    <h1 class="title">Setting up your AIC project</h1>
+    <p class="lede">
+      Here's what Workbench will install. Everything lands on
+      <code style="font-family:var(--mono); color:var(--fg-dim);">/media/user/Third_4TB</code>.
+      No system-level changes needed beyond what you've already approved.
+    </p>
+
+    <div class="plan">
+      ${items.map(it => `
+        <div class="plan-row">
+          <span class="stat ${it.stat}">${it.stat === 'ok' ? '✓' : '○'}</span>
+          <span class="name">${it.name}<span class="sub">${it.sub}</span></span>
+          <span class="size">${it.size}</span>
+        </div>
+      `).join('')}
+      <div class="plan-totals">
+        <span>Total new download: ~13.4 GB</span>
+        <span>Estimated time: 8–15 min on a typical connection</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a class="back">Back</a>
+      <span class="spacer"></span>
+      <button class="btn-secondary" id="customize">Customize</button>
+      <button class="btn-primary" id="install">Install everything</button>
+    </div>
+  `;
+  card.querySelector('.back').onclick = () => { state.step = 2; render(); };
+  document.getElementById('customize').onclick = () => {
+    alert('In the real product: detailed plan with toggles for each item, version pinning, and "use existing" overrides.');
+  };
+  document.getElementById('install').onclick = () => {
+    state.step = 4;
+    state.installRunning = true;
+    state.installPhase = 0;
+    state.installDownloadProgress = 0;
+    render();
+    runInstall();
+  };
+}
+
+// step 5 — installation in progress
+function renderProgress() {
+  const phases = [
+    { name: 'Verifying Docker',
+      detail: 'host runtime + GPU access' },
+    { name: 'Migrating Docker storage to /media/user/Third_4TB/docker',
+      detail: 'dry run · move · verify · rollback retained' },
+    { name: 'Installing NVIDIA Container Toolkit',
+      detail: '~300 MB' },
+    { name: 'Pulling AIC eval image',
+      detail: 'ghcr.io/intrinsic-dev/aic/aic_eval:latest · ~9.0 GB',
+      hasBar: true },
+    { name: 'Installing ROS 2 Kilted base + AIC SDK',
+      detail: 'pixi managed environment · ~4.0 GB' },
+    { name: 'Building Workbench AIC adapter',
+      detail: 'observation/action mappers · diagnostic rule pack' },
+    { name: 'Generating project files',
+      detail: 'Dockerfile · compose · launch · policy template' },
+    { name: 'Smoke test',
+      detail: 'reference policy · 3 trials · headless · result captured' },
+  ];
+
+  const rows = phases.map((p, i) => {
+    let stat = 'todo';
+    let detail = p.detail;
+    let barFill = 0;
+    if (i < state.installPhase) {
+      stat = 'ok';
+      detail = '✓ done';
+    } else if (i === state.installPhase && state.installRunning) {
+      stat = 'busy';
+      if (p.hasBar) {
+        barFill = state.installDownloadProgress * 100;
+        const mb = (state.installDownloadProgress * 9.0).toFixed(1);
+        detail = `${mb} / 9.0 GB`;
+      }
+    }
+    return `
+      <div class="progress-row ${stat === 'todo' ? 'todo' : ''}">
+        <span class="stat ${stat}">
+          ${stat === 'ok' ? '✓' : stat === 'busy' ? '<span class="spinner"></span>' : '○'}
+        </span>
+        <span class="name">${p.name}</span>
+        ${p.hasBar && stat === 'busy'
+          ? `<div class="bar-wrap"><div class="bar-fill" style="width:${barFill}%"></div></div>`
+          : ''}
+        <span class="detail">${detail}</span>
+      </div>
+    `;
+  }).join('');
+
+  card.innerHTML = `
+    <div class="eyebrow">Step 5 of 5 · setting up</div>
+    <h1 class="title">Installing your AIC project</h1>
+    <p class="lede">
+      Grab a coffee. Workbench is doing the work that would normally take
+      hours of terminal time.
+    </p>
+
+    <div class="plan">
+      ${rows}
+      <div class="progress-summary">
+        <span class="interpreter">Workbench is interpreting the live install logs</span>
+        <span id="elapsedLabel">elapsed 0s</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a class="back" id="cancel">Cancel</a>
+      <span class="spacer"></span>
+      <button class="btn-primary" disabled>Open project</button>
+    </div>
+  `;
+  document.getElementById('cancel').onclick = () => {
+    state.installRunning = false;
+    state.step = 3;
+    render();
+  };
+}
+
+// step 6 — ready
+function renderReady() {
+  card.innerHTML = `
+    <div class="ready-icon">✓</div>
+    <div class="eyebrow">Done</div>
+    <h1 class="title">Your AIC project is ready.</h1>
+    <p class="lede">
+      Reference policy passed the smoke test. Everything is fingerprinted.
+      You can run a real eval, edit your policy, or push your first
+      submission whenever you want.
+    </p>
+
+    <ul class="ready-list">
+      <li><span class="lab">Project</span><span class="val">aic-cable</span></li>
+      <li><span class="lab">Location</span><span class="val">/media/user/Third_4TB/PSF_Workbench/aic-cable</span></li>
+      <li><span class="lab">Adapter</span><span class="val">intrinsic-aic@0.1.0</span></li>
+      <li><span class="lab">Smoke test</span><span class="val good">passed · 3.0 baseline</span></li>
+      <li><span class="lab">Storage</span><span class="val good">managed</span></li>
+      <li><span class="lab">Fingerprint</span><span class="val">sha256:b6c1…3d2f</span></li>
+    </ul>
+
+    <div class="actions">
+      <button class="btn-secondary" id="edit">Edit policy</button>
+      <span class="spacer"></span>
+      <a href="mock2.html" class="btn-primary" style="text-decoration:none; display:inline-block;">Run reference eval ↗</a>
+    </div>
+  `;
+  document.getElementById('edit').onclick = () => {
+    alert('In the real product: opens the policy deck editor.');
+  };
+}
+
+// ── install simulation ───────────────────────────────────────
+function runInstall() {
+  // sequence of phases with simulated durations (ms)
+  const durations = [400, 1200, 700, 0 /* uses progress bar */, 1500, 800, 500, 1000];
+  const totalPhases = durations.length;
+  state.installPhase = 0;
+  const startedAt = Date.now();
+
+  const labelElapsed = () => {
+    const sec = Math.floor((Date.now() - startedAt) / 1000);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    const lab = document.getElementById('elapsedLabel');
+    if (lab) lab.textContent = 'elapsed ' + (m ? m + 'm ' : '') + s + 's';
+  };
+  const elapsedTimer = setInterval(labelElapsed, 250);
+
+  function nextPhase() {
+    if (!state.installRunning) {
+      clearInterval(elapsedTimer);
+      return;
+    }
+    if (state.installPhase >= totalPhases) {
+      clearInterval(elapsedTimer);
+      state.installRunning = false;
+      state.step = 5;
+      render();
+      return;
+    }
+    const phaseIdx = state.installPhase;
+    render();
+    if (phaseIdx === 3) {
+      // simulated download with progress bar — sped-up so the demo isn't tedious
+      state.installDownloadProgress = 0;
+      const tickEvery = 60;
+      const totalMs = 4500;
+      const stepPer = tickEvery / totalMs;
+      const dl = setInterval(() => {
+        if (!state.installRunning) {
+          clearInterval(dl);
+          clearInterval(elapsedTimer);
+          return;
+        }
+        state.installDownloadProgress = Math.min(1, state.installDownloadProgress + stepPer);
+        render();
+        if (state.installDownloadProgress >= 1) {
+          clearInterval(dl);
+          state.installPhase += 1;
+          setTimeout(nextPhase, 200);
+        }
+      }, tickEvery);
+    } else {
+      setTimeout(() => {
+        state.installPhase += 1;
+        nextPhase();
+      }, durations[phaseIdx]);
+    }
+  }
+  nextPhase();
+}
+
+// initial render
+render();
+
+</script>
+</body>
+</html>

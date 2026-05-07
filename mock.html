@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PSF Workbench — Hero Mock</title>
+  <style>
+    :root {
+      --bg: #0e1216;
+      --panel: #161b22;
+      --panel-2: #1c232b;
+      --border: #2a323c;
+      --fg: #e6edf3;
+      --fg-dim: #9aa6b2;
+      --fg-mute: #6b7785;
+      --accent: #4ec9b0;
+      --accent-dim: #2d6e63;
+      --warn: #e3b341;
+      --bad: #f85149;
+      --good: #57c98a;
+      --series: #4ec9b0;
+      --grid: #232a33;
+      --tab-h: 38px;
+      --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 220px 1fr 320px;
+      grid-template-rows: 44px 1fr 28px;
+      grid-template-areas:
+        "topbar topbar topbar"
+        "sidebar main right"
+        "statusbar statusbar statusbar";
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ── topbar ────────────────────────────────── */
+    .topbar {
+      grid-area: topbar;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 14px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .brand {
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+    .brand .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+      box-shadow: 0 0 6px var(--accent);
+    }
+    .breadcrumb {
+      color: var(--fg-dim);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .breadcrumb b { color: var(--fg); font-weight: 500; }
+    .topbar .spacer { flex: 1; }
+    .topbar .runstate {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(78, 201, 176, 0.10);
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+    }
+    .runstate .pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
+
+    .topbar button.btn {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      padding: 5px 11px;
+      border-radius: 4px;
+      font-family: var(--sans);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .topbar button.btn:hover { background: var(--panel-2); }
+    .topbar button.btn.danger { color: var(--bad); border-color: rgba(248, 81, 73, 0.35); }
+    .topbar button.btn.danger:hover { background: rgba(248, 81, 73, 0.08); }
+
+    /* ── sidebar ───────────────────────────────── */
+    .sidebar {
+      grid-area: sidebar;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 14px 0;
+      overflow: auto;
+    }
+    .sidebar h4 {
+      margin: 14px 16px 6px;
+      color: var(--fg-mute);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+    }
+    .sidebar h4:first-child { margin-top: 0; }
+    .sidebar a {
+      display: block;
+      padding: 6px 16px;
+      color: var(--fg-dim);
+      font-size: 13px;
+      text-decoration: none;
+      border-left: 2px solid transparent;
+    }
+    .sidebar a.active {
+      color: var(--fg);
+      background: var(--panel-2);
+      border-left-color: var(--accent);
+    }
+    .sidebar a:hover { color: var(--fg); }
+    .sidebar .small {
+      padding: 0 16px;
+      color: var(--fg-mute);
+      font-size: 11px;
+      font-family: var(--mono);
+    }
+
+    /* ── main ──────────────────────────────────── */
+    .main {
+      grid-area: main;
+      overflow: auto;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      grid-template-areas:
+        "summary summary"
+        "force pose"
+        "decision decision";
+      gap: 14px;
+      align-content: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+    }
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--fg-mute);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card .meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg-mute);
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .summary {
+      grid-area: summary;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      padding: 14px;
+    }
+    .summary .stat {
+      border-right: 1px solid var(--border);
+      padding-right: 14px;
+    }
+    .summary .stat:last-child { border-right: none; padding-right: 0; }
+    .summary .label {
+      font-size: 11px;
+      color: var(--fg-mute);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .summary .value {
+      font-family: var(--mono);
+      font-size: 18px;
+      color: var(--fg);
+    }
+    .summary .value .sub {
+      color: var(--fg-mute);
+      font-size: 13px;
+      margin-left: 6px;
+    }
+    .summary .value.good { color: var(--good); }
+    .summary .value.warn { color: var(--warn); }
+
+    .force {
+      grid-area: force;
+      min-height: 220px;
+    }
+    .pose {
+      grid-area: pose;
+      min-height: 220px;
+    }
+    .decision {
+      grid-area: decision;
+    }
+
+    canvas.chart {
+      width: 100%;
+      height: 160px;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .pose-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px 22px;
+      margin-top: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .pose-grid .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .pose-grid .key { color: var(--fg-mute); }
+    .pose-grid .val { color: var(--fg); }
+    .pose-grid .val.good { color: var(--good); }
+    .pose-grid .val.warn { color: var(--warn); }
+
+    .decision .pill {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: rgba(78, 201, 176, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      margin-bottom: 10px;
+    }
+    .decision .reason {
+      color: var(--fg);
+      margin: 6px 0 14px;
+      max-width: 720px;
+    }
+    .decision .gate {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--fg-dim);
+      padding: 8px 10px;
+      background: var(--panel-2);
+      border-radius: 4px;
+      border-left: 2px solid var(--good);
+    }
+    .decision .gate.warn {
+      border-left-color: var(--warn);
+      color: var(--fg);
+    }
+    .decision .gate b { color: var(--good); }
+    .decision .alts {
+      margin-top: 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg-mute);
+    }
+    .decision .alts span {
+      display: inline-block;
+      margin-right: 14px;
+      padding: 2px 8px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .decision .alts span b { color: var(--fg-dim); }
+
+    /* ── right column ──────────────────────────── */
+    .right {
+      grid-area: right;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .right-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .right-tabs .tab {
+      flex: 1;
+      height: var(--tab-h);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      color: var(--fg-dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .right-tabs .tab.active {
+      color: var(--fg);
+      border-bottom-color: var(--accent);
+    }
+
+    .right-body {
+      flex: 1;
+      overflow: auto;
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 8px;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .log-line .t { color: var(--fg-mute); flex-shrink: 0; min-width: 64px; }
+    .log-line .lvl {
+      display: inline-block;
+      flex-shrink: 0;
+      width: 22px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .log-line.lvl-info .lvl  { color: var(--fg-mute); }
+    .log-line.lvl-ignore .lvl { color: var(--fg-mute); }
+    .log-line.lvl-warn .lvl  { color: var(--warn); }
+    .log-line.lvl-good .lvl  { color: var(--good); }
+    .log-line.lvl-fatal .lvl { color: var(--bad); }
+    .log-line .msg { color: var(--fg-dim); }
+    .log-line.lvl-good .msg { color: var(--fg); }
+    .log-line.lvl-ignore .msg { color: var(--fg-mute); font-style: italic; }
+    .log-summary {
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      background: rgba(87, 201, 138, 0.08);
+      border: 1px solid rgba(87, 201, 138, 0.25);
+      color: var(--fg);
+      font-family: var(--sans);
+      font-size: 12px;
+      border-radius: 4px;
+      line-height: 1.5;
+    }
+    .log-summary b { color: var(--good); }
+    .log-summary .item {
+      display: flex;
+      justify-content: space-between;
+      color: var(--fg-dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 0;
+    }
+
+    /* ── trial timeline ────────────────────────── */
+    .timeline {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+    .trial {
+      flex: 1;
+      padding: 8px 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .trial .name {
+      color: var(--fg-mute);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .trial .score { color: var(--fg); font-size: 14px; }
+    .trial.done .score { color: var(--good); }
+    .trial.running { border-color: var(--accent-dim); }
+    .trial.running .score { color: var(--accent); }
+    .trial.pending .score { color: var(--fg-mute); }
+
+    /* ── statusbar ─────────────────────────────── */
+    .statusbar {
+      grid-area: statusbar;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg-mute);
+      gap: 18px;
+    }
+    .statusbar .ok { color: var(--good); }
+    .statusbar .warn { color: var(--warn); }
+    .statusbar .spacer { flex: 1; }
+
+    .small-mute { color: var(--fg-mute); font-family: var(--mono); font-size: 11px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── topbar ────────────────────────────────── -->
+  <div class="topbar">
+    <span class="brand"><span class="dot"></span>PSF Workbench</span>
+    <span class="breadcrumb">
+      <b>aic-cable</b> &nbsp;/&nbsp; adapter: <b>intrinsic-aic</b> &nbsp;/&nbsp; engine: <b>Reflex (frozen)</b>
+    </span>
+    <span class="spacer"></span>
+    <span class="runstate"><span class="pulse"></span><span id="runtime-label">Running · 00:42</span></span>
+    <button class="btn">Pause</button>
+    <button class="btn">Replay</button>
+    <button class="btn danger">Stop</button>
+  </div>
+
+  <!-- ── sidebar ───────────────────────────────── -->
+  <nav class="sidebar">
+    <h4>Project</h4>
+    <a class="active" href="#">Run</a>
+    <a href="#">Policy</a>
+    <a href="#">Adapter</a>
+    <a href="#">Generated</a>
+    <a href="#">History</a>
+
+    <h4>Tools</h4>
+    <a href="#">Logs</a>
+    <a href="#">Diagnose</a>
+    <a href="#">Storage</a>
+    <a href="#">Submit</a>
+
+    <h4>Project root</h4>
+    <div class="small">/media/user/Third_4TB/PSF/aic-cable</div>
+
+    <h4>Adapter</h4>
+    <div class="small">intrinsic-aic@0.1.0</div>
+
+    <h4>Run id</h4>
+    <div class="small">2026-05-07T13:01:18Z-7f3a</div>
+  </nav>
+
+  <!-- ── main ──────────────────────────────────── -->
+  <main class="main">
+
+    <section class="card summary">
+      <div class="stat">
+        <div class="label">Phase</div>
+        <div class="value" id="phase">contact_search</div>
+      </div>
+      <div class="stat">
+        <div class="label">Selected primitive</div>
+        <div class="value" id="primitive">micro_wiggle_left</div>
+      </div>
+      <div class="stat">
+        <div class="label">Wrist force</div>
+        <div class="value good" id="force-now">7.2 N <span class="sub">/ 18 N limit</span></div>
+      </div>
+      <div class="stat">
+        <div class="label">Insertion depth</div>
+        <div class="value" id="depth">12.4 <span class="sub">/ 25.0 mm</span></div>
+      </div>
+    </section>
+
+    <section class="card force">
+      <h3>Wrist Force <span class="meta" id="force-window">window: 12.0 s</span></h3>
+      <canvas class="chart" id="forceChart" width="800" height="160"></canvas>
+    </section>
+
+    <section class="card pose">
+      <h3>Pose & State <span class="meta" id="pose-tick">tick 219</span></h3>
+      <div class="pose-grid">
+        <div class="row"><span class="key">tcp.x</span><span class="val" id="tcp-x">-0.402 m</span></div>
+        <div class="row"><span class="key">tcp.y</span><span class="val" id="tcp-y">+0.452 m</span></div>
+        <div class="row"><span class="key">tcp.z</span><span class="val" id="tcp-z">+0.247 m</span></div>
+        <div class="row"><span class="key">pose error</span><span class="val good" id="pose-err">0.30 mm</span></div>
+        <div class="row"><span class="key">depth rate</span><span class="val" id="depth-rate">0.04 mm/s</span></div>
+        <div class="row"><span class="key">wrench fz</span><span class="val good" id="fz">−6.8 N</span></div>
+        <div class="row"><span class="key">contact</span><span class="val good">detected</span></div>
+        <div class="row"><span class="key">safety state</span><span class="val good">OK</span></div>
+      </div>
+    </section>
+
+    <section class="card decision">
+      <h3>Reflex Decision <span class="meta">audit-record/47</span></h3>
+      <span class="pill" id="dec-primitive">primitive: micro_wiggle_left</span>
+      <p class="reason" id="dec-reason">
+        Right lateral force increased while insertion depth stalled.
+        A small leftward wiggle is selected to relieve the lateral load
+        without exceeding the safety envelope.
+      </p>
+      <div class="gate" id="dec-gate">
+        Safety gate: <b>allowed</b> &nbsp;·&nbsp; Δ ≤ 0.2 mm &nbsp;·&nbsp; force_limit ≤ 8.0 N &nbsp;·&nbsp; clamp not triggered
+      </div>
+      <div class="alts">
+        Alternatives considered:
+        <span>back_off <b>0.61</b></span>
+        <span>descend <b>0.12</b></span>
+        <span>hold <b>0.08</b></span>
+      </div>
+
+      <h3 style="margin-top:16px;">Score Timeline</h3>
+      <div class="timeline">
+        <div class="trial done">
+          <div class="name">trial_1 · sfp_sc</div>
+          <div class="score">21.18</div>
+        </div>
+        <div class="trial running">
+          <div class="name">trial_2 · running</div>
+          <div class="score" id="t2-score">— pending</div>
+        </div>
+        <div class="trial pending">
+          <div class="name">trial_3 · queued</div>
+          <div class="score">—</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── right column: logs / interpreter ─────── -->
+  <aside class="right">
+    <div class="right-tabs">
+      <div class="tab active" data-tab="status">Status</div>
+      <div class="tab" data-tab="logs">Raw logs</div>
+      <div class="tab" data-tab="run">Run info</div>
+    </div>
+    <div class="right-body" id="right-status">
+      <div class="log-summary">
+        <b>Run is healthy.</b><br />
+        Workbench is interpreting the underlying log stream.
+        <div class="item"><span>fatal</span><span>0</span></div>
+        <div class="item"><span>action needed</span><span>0</span></div>
+        <div class="item"><span>warnings</span><span>0</span></div>
+        <div class="item"><span>ignored (known noise)</span><span id="ignored-count">3</span></div>
+      </div>
+      <div id="log-feed"></div>
+    </div>
+    <div class="right-body" id="right-logs" style="display:none;">
+      <div id="raw-feed"></div>
+    </div>
+    <div class="right-body" id="right-run" style="display:none;">
+      <div style="color:var(--fg-dim); line-height:1.7;">
+        <div><span class="small-mute">project</span><br/>aic-cable</div>
+        <div style="margin-top:10px;"><span class="small-mute">run_id</span><br/>2026-05-07T13:01:18Z-7f3a</div>
+        <div style="margin-top:10px;"><span class="small-mute">policy_fingerprint</span><br/>sha256:b6c1…3d2f</div>
+        <div style="margin-top:10px;"><span class="small-mute">image_digest</span><br/>sha256:74d9…3ab1</div>
+        <div style="margin-top:10px;"><span class="small-mute">adapter</span><br/>intrinsic-aic@0.1.0</div>
+        <div style="margin-top:10px;"><span class="small-mute">host</span><br/>ubuntu-24.04 · docker-29.3.1 · M5000 · driver-535.247.01</div>
+        <div style="margin-top:10px;"><span class="small-mute">started</span><br/>2026-05-07T13:01:18Z</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── statusbar ─────────────────────────────── -->
+  <div class="statusbar">
+    <span class="ok">● storage managed</span>
+    <span>/mnt/bigdrive/psf · 32 GB free</span>
+    <span class="ok">● compose up</span>
+    <span>aic-eval-1, aic-model-1</span>
+    <span class="ok">● fingerprinted</span>
+    <span class="spacer"></span>
+    <span id="tick-clock">tick 219 · 4.6 ticks/s</span>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+// -- fake live data ----------------------------------------------------
+const state = {
+  t0: Date.now(),
+  tick: 219,
+  forcePoints: [], // {t, fz}
+  windowSec: 12,
+  forceMin: 0,
+  forceMax: 14,
+  ignoredCount: 3,
+  trial2Score: 0,
+  phase: "contact_search",
+  // simulated noise generator
+  noise() { return (Math.random() - 0.5) * 2; },
+};
+
+// seed force history with plausible curve
+{
+  const now = Date.now();
+  for (let i = -240; i <= 0; i++) {
+    const t = now + i * 50;
+    const base = 6.5 + Math.sin(i / 18) * 1.4 + Math.sin(i / 5) * 0.4;
+    state.forcePoints.push({ t, fz: base + state.noise() * 0.3 });
+  }
+}
+
+// -- chart -------------------------------------------------------------
+const canvas = document.getElementById('forceChart');
+const ctx = canvas.getContext('2d');
+
+function fitCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth;
+  const cssH = canvas.clientHeight;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+fitCanvas();
+window.addEventListener('resize', fitCanvas);
+
+function drawChart() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  // grid
+  ctx.strokeStyle = '#232a33';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = (i / 4) * h;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  for (let i = 0; i <= 6; i++) {
+    const x = (i / 6) * w;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+
+  // axis labels
+  ctx.fillStyle = '#6b7785';
+  ctx.font = '10px ui-monospace, Consolas, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(state.forceMax.toFixed(0) + ' N', 4, 11);
+  ctx.fillText('0 N', 4, h - 4);
+
+  // limit line at 8N (safety threshold for force_limit_n in the audit record)
+  const yLimit = h - (8 / state.forceMax) * h;
+  ctx.strokeStyle = 'rgba(227, 179, 65, 0.55)';
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(0, yLimit);
+  ctx.lineTo(w, yLimit);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(227, 179, 65, 0.85)';
+  ctx.fillText('soft limit 8 N', w - 88, yLimit - 4);
+
+  // series
+  const pts = state.forcePoints;
+  if (pts.length < 2) return;
+  const tMax = pts[pts.length - 1].t;
+  const tMin = tMax - state.windowSec * 1000;
+
+  ctx.strokeStyle = '#4ec9b0';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  let first = true;
+  for (const p of pts) {
+    if (p.t < tMin) continue;
+    const x = ((p.t - tMin) / (tMax - tMin)) * w;
+    const y = h - (p.fz / state.forceMax) * h;
+    if (first) { ctx.moveTo(x, y); first = false; }
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // fill under
+  ctx.lineTo(w, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(78, 201, 176, 0.08)';
+  ctx.fill();
+
+  // last value dot
+  const last = pts[pts.length - 1];
+  const lx = w;
+  const ly = h - (last.fz / state.forceMax) * h;
+  ctx.fillStyle = '#4ec9b0';
+  ctx.beginPath();
+  ctx.arc(lx - 2, ly, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// -- log feeds ---------------------------------------------------------
+const interpretedFeed = document.getElementById('log-feed');
+const rawFeed = document.getElementById('raw-feed');
+
+const interpretedLines = [
+  { lvl: 'good', t: '+00:42.1', msg: 'reflex: chose micro_wiggle_left (force.y=6.8, depth_rate=0.0)' },
+  { lvl: 'info', t: '+00:42.0', msg: 'safety gate: allowed (Δ ≤ 0.2 mm, force ≤ 8 N)' },
+  { lvl: 'info', t: '+00:41.4', msg: 'phase: align → contact_search' },
+  { lvl: 'good', t: '+00:38.7', msg: 'first contact detected, fz=4.1 N' },
+  { lvl: 'ignore', t: '+00:36.1', msg: 'ignored: gz_sensors deserialize warning (known)' },
+  { lvl: 'info', t: '+00:34.0', msg: 'controller: aic_controller activated (impedance, cartesian)' },
+  { lvl: 'ignore', t: '+00:31.6', msg: 'ignored: zenoh ACL default-allow notice (known)' },
+  { lvl: 'info', t: '+00:30.2', msg: 'engine: trial_2 task=task_2 cable=cable_1 port=sfp_port_1' },
+  { lvl: 'good', t: '+00:18.4', msg: 'trial_1 completed · score 21.18 · scoring succeeded' },
+  { lvl: 'ignore', t: '+00:11.2', msg: 'ignored: rviz EGL extension warning (known)' },
+  { lvl: 'info', t: '+00:00.0', msg: 'run started · adapter intrinsic-aic@0.1.0 · engine reflex(frozen)' },
+];
+const rawLines = [
+  { t: '13:02:00.124', s: 'eval-1', m: '[aic_engine-5] [INFO] reflex selected micro_wiggle_left' },
+  { t: '13:02:00.118', s: 'model-1', m: '[INFO] reflex.audit: gate=allowed delta=0.2 limit=8.0' },
+  { t: '13:01:59.840', s: 'eval-1', m: '[component_container-3] (debug) ForceTorque tick' },
+  { t: '13:01:59.800', s: 'model-1', m: '[INFO] phase contact_search → reflex consult' },
+  { t: '13:01:56.800', s: 'eval-1', m: '[component_container-3] gz_sensors deserialize warning [ignored]' },
+  { t: '13:01:54.020', s: 'eval-1', m: '[aic_controller] activated (impedance, cartesian)' },
+  { t: '13:01:51.600', s: 'eval-1', m: '[zenoh] acc-0 ACL default-allow notice [ignored]' },
+  { t: '13:01:48.300', s: 'eval-1', m: '[aic_engine-5] starting trial_2 (cable_1 → sfp_port_1)' },
+  { t: '13:01:30.227', s: 'eval-1', m: '[aic_engine-5] trial_1 score 21.18 (scoring succeeded)' },
+  { t: '13:01:23.000', s: 'eval-1', m: '[rviz2] EGL extension MIT-SHM warning [ignored]' },
+  { t: '13:01:18.273', s: 'eval-1', m: '[launch] starting eval container' },
+];
+
+function renderInterpreted() {
+  interpretedFeed.innerHTML = interpretedLines.map(l => `
+    <div class="log-line lvl-${l.lvl}">
+      <span class="t">${l.t}</span>
+      <span class="lvl">${l.lvl === 'good' ? '✓' : l.lvl === 'warn' ? '!' : l.lvl === 'fatal' ? '×' : l.lvl === 'ignore' ? '◌' : '·'}</span>
+      <span class="msg">${l.msg}</span>
+    </div>`).join('');
+}
+function renderRaw() {
+  rawFeed.innerHTML = rawLines.map(l => `
+    <div class="log-line lvl-info">
+      <span class="t">${l.t}</span>
+      <span class="lvl">${l.s === 'eval-1' ? 'E' : 'M'}</span>
+      <span class="msg">${l.m}</span>
+    </div>`).join('');
+}
+renderInterpreted();
+renderRaw();
+
+// -- right-tab switching ----------------------------------------------
+document.querySelectorAll('.right-tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.right-tabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const which = tab.dataset.tab;
+    document.getElementById('right-status').style.display = which === 'status' ? 'block' : 'none';
+    document.getElementById('right-logs').style.display = which === 'logs' ? 'block' : 'none';
+    document.getElementById('right-run').style.display = which === 'run' ? 'block' : 'none';
+  });
+});
+
+// -- live tick loop ----------------------------------------------------
+let lastT = Date.now();
+function tick() {
+  const now = Date.now();
+  const dt = (now - lastT) / 1000;
+  lastT = now;
+
+  state.tick += 1;
+
+  // generate next force sample
+  const last = state.forcePoints[state.forcePoints.length - 1];
+  const drift = Math.sin(state.tick / 18) * 1.4 + Math.sin(state.tick / 5) * 0.4;
+  const next = 6.5 + drift + state.noise() * 0.4;
+  state.forcePoints.push({ t: now, fz: next });
+  // keep only last ~12 sec
+  const cutoff = now - state.windowSec * 1000 - 1000;
+  while (state.forcePoints.length > 0 && state.forcePoints[0].t < cutoff) {
+    state.forcePoints.shift();
+  }
+
+  // update DOM
+  const fzVal = next;
+  const forceEl = document.getElementById('force-now');
+  forceEl.textContent = fzVal.toFixed(1) + ' N';
+  forceEl.className = 'value ' + (fzVal > 11 ? 'warn' : 'good');
+  forceEl.innerHTML = fzVal.toFixed(1) + ' N <span class="sub">/ 18 N limit</span>';
+
+  document.getElementById('fz').textContent = '−' + fzVal.toFixed(1) + ' N';
+
+  // depth slowly increases
+  const depthEl = document.getElementById('depth');
+  const elapsedSec = (now - state.t0) / 1000;
+  const depth = Math.min(25, 12.4 + elapsedSec * 0.05);
+  depthEl.innerHTML = depth.toFixed(1) + ' <span class="sub">/ 25.0 mm</span>';
+
+  document.getElementById('depth-rate').textContent = (0.04 + state.noise() * 0.01).toFixed(2) + ' mm/s';
+  document.getElementById('pose-tick').textContent = 'tick ' + state.tick;
+  document.getElementById('tick-clock').textContent = 'tick ' + state.tick + ' · 4.6 ticks/s';
+
+  // small TCP jitter
+  document.getElementById('tcp-x').textContent = (-0.402 + state.noise() * 0.0005).toFixed(4) + ' m';
+  document.getElementById('tcp-y').textContent = ('+' + (0.452 + state.noise() * 0.0005).toFixed(4)) + ' m';
+  document.getElementById('tcp-z').textContent = ('+' + (0.247 + state.noise() * 0.0005).toFixed(4)) + ' m';
+  document.getElementById('pose-err').textContent = (0.30 + Math.abs(state.noise()) * 0.05).toFixed(2) + ' mm';
+
+  // runtime label
+  const elapsed = (now - state.t0) / 1000;
+  const m = Math.floor(elapsed / 60);
+  const s = Math.floor(elapsed % 60);
+  document.getElementById('runtime-label').textContent =
+    'Running · ' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+
+  // trial 2 score creeps up
+  state.trial2Score = Math.min(22, state.trial2Score + 0.05);
+  if (state.trial2Score > 0.5) {
+    document.getElementById('t2-score').textContent = state.trial2Score.toFixed(2);
+  }
+
+  // occasionally append a new interpreted log line
+  if (state.tick % 28 === 0) {
+    interpretedLines.unshift({
+      lvl: 'good',
+      t: '+' + String(m).padStart(2, '0') + ':' + (s + Math.random() * 0.9).toFixed(1),
+      msg: 'reflex: chose micro_wiggle_left (gate ✓)'
+    });
+    if (interpretedLines.length > 14) interpretedLines.pop();
+    renderInterpreted();
+  }
+  if (state.tick % 70 === 0) {
+    state.ignoredCount += 1;
+    document.getElementById('ignored-count').textContent = state.ignoredCount;
+    interpretedLines.unshift({
+      lvl: 'ignore',
+      t: '+' + String(m).padStart(2, '0') + ':' + (s + Math.random() * 0.9).toFixed(1),
+      msg: 'ignored: gz_sensors deserialize warning (known)'
+    });
+    if (interpretedLines.length > 14) interpretedLines.pop();
+    renderInterpreted();
+  }
+
+  drawChart();
+}
+drawChart();
+setInterval(tick, 220);
+
+</script>
+</body>
+</html>

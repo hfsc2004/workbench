@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# psf-workbench — the Workbench CLI.
+#
+# This is the start of the platform's primary command. Today it implements
+# one verb (`run --mode play`) routed through the intrinsic-aic adapter.
+# Will grow to cover all the verbs in PSF_Workbench.md Rule 2:
+#   run, stop, log, diagnose, fingerprint, package, push, submit,
+#   replay, audit, sync, store.
+#
+# Architecture: Workbench owns verbs. Adapters own nouns. This script
+# resolves the user's verb against their project's chosen adapter, then
+# invokes the adapter's mode-specific entry point.
+#
+# Usage (from inside a Workbench project — a directory containing
+# psf.project.yaml):
+#   psf-workbench run --mode play
+#   psf-workbench help
+
+set -euo pipefail
+
+WORKBENCH_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ADAPTERS_DIR="$WORKBENCH_HOME/adapters"
+
+# ── helpers ────────────────────────────────────────────────────────────
+
+err() { echo "[psf] $*" >&2; }
+die() { err "$*"; exit 1; }
+
+# Find the project root by walking up from PWD looking for psf.project.yaml.
+find_project_root() {
+  local d
+  d="$(pwd)"
+  while [[ "$d" != "/" ]]; do
+    if [[ -f "$d/psf.project.yaml" ]]; then
+      echo "$d"
+      return 0
+    fi
+    d="$(dirname "$d")"
+  done
+  return 1
+}
+
+# Read a top-level scalar from psf.project.yaml. Tiny YAML reader for the
+# small subset Workbench currently uses — replaced with a real parser later.
+yaml_get() {
+  local file="$1"
+  local key="$2"
+  awk -v k="$key" '
+    $0 ~ "^"k":[[:space:]]*" {
+      sub("^"k":[[:space:]]*", "")
+      sub("[[:space:]]+#.*", "")
+      gsub(/^"/, "")
+      gsub(/"$/, "")
+      print
+      exit
+    }
+  ' "$file"
+}
+
+# Read a key under adapter_config: in psf.project.yaml. Same caveat — this
+# is a placeholder reader, not a real YAML parser.
+yaml_get_under() {
+  local file="$1"
+  local section="$2"
+  local key="$3"
+  awk -v sec="$section" -v k="$key" '
+    BEGIN { in_section = 0 }
+    $0 ~ "^"sec":[[:space:]]*$" { in_section = 1; next }
+    in_section && /^[^[:space:]#]/ { in_section = 0 }
+    in_section && $0 ~ "^[[:space:]]+"k":[[:space:]]*" {
+      sub("^[[:space:]]+"k":[[:space:]]*", "")
+      sub("[[:space:]]+#.*", "")
+      gsub(/^"/, "")
+      gsub(/"$/, "")
+      print
+      exit
+    }
+  ' "$file"
+}
+
+# ── verbs ──────────────────────────────────────────────────────────────
+
+cmd_run() {
+  local mode=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --mode) mode="$2"; shift 2 ;;
+      --mode=*) mode="${1#--mode=}"; shift ;;
+      -h|--help) echo "usage: psf-workbench run --mode <play|eval|submit>"; return 0 ;;
+      *) die "unknown arg: $1" ;;
+    esac
+  done
+
+  [[ -n "$mode" ]] || die "run requires --mode (play | eval | submit)"
+
+  local project_root
+  project_root="$(find_project_root)" \
+    || die "no psf.project.yaml found in this directory or any parent.
+        Workbench projects are identified by a psf.project.yaml file at the root."
+
+  local project_file="$project_root/psf.project.yaml"
+  local adapter
+  adapter="$(yaml_get "$project_file" adapter)"
+  [[ -n "$adapter" ]] || die "psf.project.yaml has no 'adapter:' field"
+
+  local adapter_dir="$ADAPTERS_DIR/$adapter"
+  [[ -d "$adapter_dir" ]] || die "unknown adapter: $adapter
+        looked for: $adapter_dir"
+
+  local mode_script="$adapter_dir/${mode}.sh"
+  if [[ ! -x "$mode_script" ]]; then
+    if [[ -f "$mode_script" ]]; then
+      die "adapter $adapter has $mode.sh but it isn't executable.
+        fix: chmod +x $mode_script"
+    else
+      die "adapter $adapter does not implement '$mode' mode yet.
+        looked for: $mode_script"
+    fi
+  fi
+
+  # Translate adapter_config: keys → PSF_AIC_* env vars based on adapter.yaml.
+  # For v0.1 we hard-code the intrinsic-aic mapping; will read from adapter.yaml
+  # once we have a real YAML parser in the loop.
+  if [[ "$adapter" == "intrinsic-aic" ]]; then
+    export PSF_AIC_WS="$(yaml_get_under "$project_file" adapter_config aic_ws)"
+    export PSF_AIC_GUI="$(yaml_get_under "$project_file" adapter_config gui)"
+    export PSF_AIC_RVIZ="$(yaml_get_under "$project_file" adapter_config rviz)"
+    export PSF_AIC_GROUND_TRUTH="$(yaml_get_under "$project_file" adapter_config ground_truth)"
+    export PSF_AIC_SPAWN_TASK_BOARD="$(yaml_get_under "$project_file" adapter_config spawn_task_board)"
+    export PSF_AIC_SPAWN_CABLE="$(yaml_get_under "$project_file" adapter_config spawn_cable)"
+    export PSF_AIC_ATTACH_CABLE="$(yaml_get_under "$project_file" adapter_config attach_cable_to_gripper)"
+    export PSF_AIC_CABLE_TYPE="$(yaml_get_under "$project_file" adapter_config cable_type)"
+  fi
+
+  echo "[psf] project: $project_root"
+  echo "[psf] adapter: $adapter"
+  echo "[psf] mode:    $mode"
+  echo "[psf] →       $mode_script"
+  echo
+
+  exec "$mode_script"
+}
+
+cmd_help() {
+  cat <<EOF
+psf-workbench — robotics workbench, v0.0.1 (early development)
+
+usage:
+  psf-workbench <verb> [args]
+
+verbs implemented:
+  run --mode <play|eval|submit>   run the project in the named mode
+  help                            this message
+
+planned verbs:
+  stop, log, diagnose, fingerprint, package, push, submit,
+  replay, audit, sync, store
+
+a Workbench project is identified by a psf.project.yaml at its root.
+adapters live under: $ADAPTERS_DIR
+
+currently installed adapters:
+$(ls -1 "$ADAPTERS_DIR" 2>/dev/null | sed 's/^/  - /' || echo "  (none)")
+EOF
+}
+
+# ── dispatch ───────────────────────────────────────────────────────────
+
+if [[ $# -eq 0 ]]; then
+  cmd_help
+  exit 0
+fi
+
+verb="$1"
+shift
+
+case "$verb" in
+  run)            cmd_run "$@" ;;
+  help|-h|--help) cmd_help ;;
+  *)              die "unknown verb: $verb (try: psf-workbench help)" ;;
+esac
