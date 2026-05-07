@@ -19,7 +19,7 @@ ROS 2 ecosystem (Gazebo, MoveIt, Nav2, ros2_control, vendor SDKs); the
 architecture is designed to extend to MuJoCo, microcontroller endpoints
 (ESP32, RP2040), and industrial protocols (PLC, Modbus, OPC-UA).
 
-## Status — v0.1.0
+## Status — v0.1.1
 
 What ships now:
 
@@ -30,6 +30,7 @@ What ships now:
 | `intrinsic-aic` adapter pack | ✓ Play mode runs; Eval / Submit have documented manual fallbacks |
 | Electron desktop UI | ✓ splash → chooser → onboarding wizard → operator view |
 | **Behavior Deck editor** | ✓ compose policies as named cards with parameters |
+| **Code editor (CodeMirror 6)** | ✓ in-app Python editor for `policy.py` with syntax highlighting, autocomplete, search, conflict-aware save |
 | **Code generator** | ✓ deck.yaml → working `policy.py` derived from `aic_model.policy.Policy` |
 | **Subprocess lifecycle** | ✓ clean SIGINT + `docker stop`, awaits real cleanup, sweeps orphan containers on startup |
 | Policy ↔ live sim auto-launch | — v0.2 target |
