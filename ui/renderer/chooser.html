@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PSF Workbench — Open project</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .stage {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 64px 24px 48px;
+    }
+
+    .brand-bar {
+      position: fixed;
+      top: 18px;
+      left: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--fg-mute);
+      font-size: 13px;
+      letter-spacing: 0.5px;
+    }
+    .brand-bar .mini-logo {
+      width: 22px;
+      height: 22px;
+      background: #fff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 1px var(--card-edge);
+    }
+    .brand-bar .mini-logo img {
+      width: 80%;
+      height: 80%;
+      object-fit: contain;
+    }
+    .brand-bar b { color: var(--fg-dim); font-weight: 600; }
+
+    /* recent-projects list */
+    .recents {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .recent {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--card-edge);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.015);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .recent:hover {
+      border-color: rgba(111, 202, 177, 0.25);
+      background: rgba(111, 202, 177, 0.04);
+    }
+    .recent .col { flex: 1; min-width: 0; }
+    .recent .name {
+      font-size: 14px;
+      color: var(--fg);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .recent .path {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg-mute);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .recent .adapter {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg-dim);
+      flex-shrink: 0;
+      padding: 3px 8px;
+      border: 1px solid var(--card-edge);
+      border-radius: 12px;
+    }
+
+    .empty-recents {
+      padding: 14px 16px;
+      border: 1px dashed var(--card-edge);
+      border-radius: 8px;
+      color: var(--fg-mute);
+      font-size: 13px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    /* big section divider for new-project CTA */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 22px 0 18px;
+      color: var(--fg-mute);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--card-edge);
+    }
+
+    .new-project-block {
+      display: flex;
+      gap: 12px;
+    }
+    .new-project-block .btn-primary { flex: 1; }
+    .new-project-block .btn-secondary { flex: 0 0 auto; }
+  </style>
+</head>
+<body>
+
+  <div class="brand-bar">
+    <div class="mini-logo">
+      <img src="../assets/logo.png" alt="" />
+    </div>
+    <span><b>PSF Workbench</b></span>
+  </div>
+
+  <div class="stage">
+    <article class="card">
+
+      <div class="eyebrow">Welcome back</div>
+      <h1 class="title">Open a project, or start a new one.</h1>
+      <p class="lede">
+        A Workbench project is a directory containing a
+        <code style="font-family:var(--mono); color:var(--fg-dim);">workbench.project.yaml</code>
+        file. Pick from the list or browse for one.
+      </p>
+
+      <div class="recents" id="recents"></div>
+
+      <div class="actions" style="border-top:none; padding-top:0; margin-bottom: 4px;">
+        <span class="spacer"></span>
+        <button class="btn-secondary" id="browse">Browse for project…</button>
+      </div>
+
+      <div class="divider">or</div>
+
+      <div class="new-project-block">
+        <button class="btn-primary" id="new-project">Start a new project</button>
+      </div>
+
+    </article>
+  </div>
+
+  <script>
+    'use strict';
+
+    const recentsEl = document.getElementById('recents');
+
+    function renderRecents(list) {
+      if (!list || list.length === 0) {
+        recentsEl.innerHTML = `
+          <div class="empty-recents">
+            No recent projects yet. Browse for an existing one, or start a new project below.
+          </div>
+        `;
+        return;
+      }
+      recentsEl.innerHTML = list.map((p, i) => `
+        <div class="recent" data-i="${i}">
+          <div class="col">
+            <div class="name">${escapeHtml(p.name || '(unnamed)')}</div>
+            <div class="path">${escapeHtml(p.path)}</div>
+          </div>
+          <div class="adapter">${escapeHtml(p.adapter || '(no adapter)')}</div>
+        </div>
+      `).join('');
+
+      recentsEl.querySelectorAll('.recent').forEach((row) => {
+        row.addEventListener('click', () => {
+          const i = Number(row.dataset.i);
+          const p = list[i];
+          // for now: stash and navigate to a project view (which doesn't
+          // exist yet). Onboarding wizard exists; operator view will be
+          // added when project loading is wired up to actually run.
+          sessionStorage.setItem('workbench:openProject', JSON.stringify(p));
+          // TODO replace with operator.html when that exists
+          alert('Opening project: ' + p.path + '\n\n(Operator view coming next.)');
+        });
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    document.getElementById('browse').addEventListener('click', async () => {
+      const result = await window.workbench.browseForProject();
+      if (!result) return;                      // user canceled
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      // refresh recents and pretend the user clicked the new entry
+      const list = await window.workbench.listProjects();
+      renderRecents(list);
+      sessionStorage.setItem('workbench:openProject', JSON.stringify(result));
+      alert('Opening project: ' + result.path + '\n\n(Operator view coming next.)');
+    });
+
+    document.getElementById('new-project').addEventListener('click', () => {
+      window.workbench.navigate('onboarding.html');
+    });
+
+    // initial load
+    (async () => {
+      const list = await window.workbench.listProjects();
+      renderRecents(list);
+    })();
+  </script>
+
+</body>
+</html>
