@@ -83,6 +83,22 @@
     }
     .corner a { color: var(--fg-mute); text-decoration: none; cursor: pointer; }
     .corner a:hover { color: var(--fg-dim); }
+    .corner .gear {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--card-edge);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+      color: var(--fg-mute);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .corner .gear:hover {
+      color: var(--fg-dim);
+      border-color: rgba(111, 202, 177, 0.3);
+      background: rgba(111, 202, 177, 0.08);
+    }
 
     .stage {
       min-height: 100vh;
@@ -255,6 +271,134 @@
       flex: 1;
       overflow: auto;
       padding: 12px 14px;
+    }
+
+    /* settings modal */
+    .settings-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 10, 13, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      backdrop-filter: blur(2px);
+    }
+    .settings-backdrop.open { display: flex; }
+    .settings-modal {
+      width: min(760px, calc(100vw - 36px));
+      max-height: min(82vh, 760px);
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, var(--card) 0%, var(--bg-2) 100%);
+      border: 1px solid var(--card-edge);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .settings-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--card-edge);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--fg-dim);
+      font-size: 13px;
+      letter-spacing: 0.4px;
+    }
+    .settings-head .close {
+      color: var(--fg-mute);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .settings-head .close:hover { color: var(--fg-dim); }
+    .settings-body {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      min-height: 360px;
+      overflow: hidden;
+    }
+    .settings-tabs {
+      border-right: 1px solid var(--card-edge);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .settings-tab {
+      padding: 10px 12px;
+      border: 1px solid var(--card-edge);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+      color: var(--fg-mute);
+      font-size: 12px;
+      cursor: default;
+    }
+    .settings-tab.active {
+      color: var(--fg);
+      border-color: var(--accent);
+      background: rgba(111, 202, 177, 0.08);
+    }
+    .settings-panel {
+      padding: 16px;
+      overflow: auto;
+    }
+    .aws-grid {
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      gap: 10px 14px;
+      font-size: 12px;
+    }
+    .aws-grid .k {
+      color: var(--fg-mute);
+      font-family: var(--mono);
+    }
+    .aws-grid .v {
+      color: var(--fg-dim);
+      font-family: var(--mono);
+      word-break: break-word;
+    }
+    .aws-grid input {
+      width: 100%;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--card-edge);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--fg-dim);
+      font-family: var(--mono);
+      font-size: 12px;
+      outline: none;
+    }
+    .aws-grid input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(111, 202, 177, 0.20) inset;
+    }
+    .aws-actions {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .aws-save {
+      background: var(--accent);
+      color: #0d1217;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .aws-save:hover { background: var(--accent-2); }
+    .aws-save-msg {
+      color: var(--fg-mute);
+      font-size: 12px;
+    }
+    .aws-note {
+      margin-top: 14px;
+      color: var(--fg-mute);
+      font-size: 12px;
+      line-height: 1.5;
     }
 
     /* deck editor */
@@ -629,6 +773,7 @@
 
   <div class="corner">
     <a id="back-to-chooser">← Projects</a>
+    <button class="gear" id="btn-settings" title="Settings" aria-label="Settings">⚙</button>
   </div>
 
   <div class="stage">
@@ -653,8 +798,8 @@
       <div class="controls">
         <div class="modes" id="modes">
           <div class="mode selected" data-mode="play">Play</div>
-          <div class="mode disabled" data-mode="eval" data-not-ready="1">Eval</div>
-          <div class="mode disabled" data-mode="submit" data-not-ready="1">Submit</div>
+          <div class="mode" data-mode="eval">Eval</div>
+          <div class="mode" data-mode="submit">Submit</div>
         </div>
         <div class="spacer"></div>
         <button class="btn-stop" id="btn-stop" disabled>Stop</button>
@@ -748,6 +893,38 @@
     </div>
   </div>
 
+  <!-- settings modal -->
+  <div class="settings-backdrop" id="settings-modal">
+    <div class="settings-modal">
+      <div class="settings-head">
+        <span>Settings</span>
+        <span class="close" id="settings-close">×</span>
+      </div>
+      <div class="settings-body">
+        <div class="settings-tabs">
+          <div class="settings-tab active" data-settings-tab="aws">AWS</div>
+        </div>
+        <div class="settings-panel" id="settings-panel-aws">
+          <div class="aws-grid">
+            <div class="k">submit_team</div><div class="v"><input id="aws-submit-team" placeholder="pseudo-science-fiction" /></div>
+            <div class="k">submit_tag</div><div class="v"><input id="aws-submit-tag" placeholder="v12" /></div>
+            <div class="k">submit_region</div><div class="v"><input id="aws-submit-region" placeholder="us-east-1" /></div>
+            <div class="k">submission_dir</div><div class="v"><input id="aws-submission-dir" /></div>
+          </div>
+          <div class="aws-actions">
+            <button class="aws-save" id="aws-save">Save AWS Settings</button>
+            <span class="aws-save-msg" id="aws-save-msg"></span>
+          </div>
+          <div class="aws-note">
+            These values come from <code>workbench.project.yaml</code> under
+            <code>adapter_config</code>. Submit mode requires
+            <code>submit_team</code> and <code>submit_tag</code>.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     'use strict';
 
@@ -801,6 +978,11 @@
     const btnRun = document.getElementById('btn-run');
     const btnStop = document.getElementById('btn-stop');
     const modesEl = document.getElementById('modes');
+    const btnSettings = document.getElementById('btn-settings');
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsClose = document.getElementById('settings-close');
+    const awsSave = document.getElementById('aws-save');
+    const awsSaveMsg = document.getElementById('aws-save-msg');
     const deckBody = document.getElementById('deck-body');
     const savedFlag = document.getElementById('saved-flag');
 
@@ -839,6 +1021,24 @@
     }
     function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+    async function refreshAwsSettings() {
+      const d = await window.workbench.readProject(project.path);
+      const cfg = d?.adapter_config || {};
+      document.getElementById('aws-submit-team').value = cfg.submit_team || '';
+      document.getElementById('aws-submit-tag').value = cfg.submit_tag || '';
+      document.getElementById('aws-submit-region').value = cfg.submit_region || 'us-east-1';
+      document.getElementById('aws-submission-dir').value = cfg.submission_dir || project.path;
+      awsSaveMsg.textContent = '';
+    }
+
+    function openSettings() {
+      refreshAwsSettings().catch(() => {});
+      settingsModal.classList.add('open');
+    }
+    function closeSettings() {
+      settingsModal.classList.remove('open');
+    }
+
     // ── mode picker ────────────────────────────────────────────────
     modesEl.querySelectorAll('.mode').forEach((el) => {
       el.addEventListener('click', () => {
@@ -867,6 +1067,33 @@
       const res = await window.workbench.openInEditor(project.path);
       if (res?.error) appendLog('[workbench] open-in-editor: ' + res.error, 'error');
       else appendLog('[workbench] opened project in ' + (res?.opened || 'editor'), 'system');
+    });
+
+    btnSettings.addEventListener('click', openSettings);
+    settingsClose.addEventListener('click', closeSettings);
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) closeSettings();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && settingsModal.classList.contains('open')) closeSettings();
+    });
+
+    awsSave.addEventListener('click', async () => {
+      const updates = {
+        submit_team: document.getElementById('aws-submit-team').value.trim(),
+        submit_tag: document.getElementById('aws-submit-tag').value.trim(),
+        submit_region: document.getElementById('aws-submit-region').value.trim(),
+        submission_dir: document.getElementById('aws-submission-dir').value.trim(),
+      };
+      awsSaveMsg.textContent = 'Saving…';
+      const res = await window.workbench.saveAdapterConfig(project.path, updates);
+      if (res?.error) {
+        awsSaveMsg.textContent = 'Save failed: ' + res.error;
+        appendLog('[workbench] settings save failed: ' + res.error, 'error');
+        return;
+      }
+      awsSaveMsg.textContent = 'Saved ✓';
+      appendLog('[workbench] AWS settings saved to workbench.project.yaml', 'system');
     });
 
     // ── run / stop ─────────────────────────────────────────────────

@@ -187,6 +187,57 @@ function readProjectFile(filePath) {
   return { top, adapterConfig };
 }
 
+function yamlScalar(v) {
+  if (v === true || v === false) return String(v);
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  const s = String(v ?? '');
+  if (/^[A-Za-z0-9_.\/:-]+$/.test(s)) return s;
+  return JSON.stringify(s);
+}
+
+function writeAdapterConfig(filePath, mergedConfig) {
+  const text = fs.readFileSync(filePath, 'utf8');
+  const lines = text.split('\n');
+
+  const outLines = [];
+  let i = 0;
+  let replaced = false;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^adapter_config:\s*$/.test(line)) {
+      replaced = true;
+      outLines.push('adapter_config:');
+      for (const [k, v] of Object.entries(mergedConfig)) {
+        if (v == null || v === '') continue;
+        outLines.push(`  ${k}: ${yamlScalar(v)}`);
+      }
+      i += 1;
+      while (i < lines.length) {
+        const l = lines[i];
+        if (/^\S/.test(l) && !/^\s*#/.test(l)) break;
+        if (/^\s+[A-Za-z_][\w]*:\s*/.test(l)) { i += 1; continue; }
+        if (/^\s*$/.test(l) || /^\s*#/.test(l)) { i += 1; continue; }
+        break;
+      }
+      continue;
+    }
+    outLines.push(line);
+    i += 1;
+  }
+
+  if (!replaced) {
+    if (outLines.length && outLines[outLines.length - 1].trim() !== '') outLines.push('');
+    outLines.push('adapter_config:');
+    for (const [k, v] of Object.entries(mergedConfig)) {
+      if (v == null || v === '') continue;
+      outLines.push(`  ${k}: ${yamlScalar(v)}`);
+    }
+  }
+
+  const rewritten = outLines.join('\n').replace(/\n+$/g, '\n');
+  fs.writeFileSync(filePath, rewritten, 'utf8');
+}
+
 // ── IPC handlers ───────────────────────────────────────────────────
 
 // list known projects (with light metadata) for the chooser
@@ -257,6 +308,27 @@ ipcMain.handle('project:read', (_evt, projectPath) => {
     adapter: proj.top.adapter || '(unknown)',
     adapter_config: proj.adapterConfig,
   };
+});
+
+ipcMain.handle('project:adapter-config-save', (_evt, { projectPath, updates }) => {
+  if (!projectPath || !updates || typeof updates !== 'object') {
+    return { error: 'projectPath and updates are required' };
+  }
+  const file = path.join(projectPath, 'workbench.project.yaml');
+  const proj = readProjectFile(file);
+  if (!proj) return { error: `No workbench.project.yaml at ${projectPath}` };
+  const merged = { ...(proj.adapterConfig || {}) };
+  for (const [k, v] of Object.entries(updates)) {
+    if (v == null || v === '') delete merged[k];
+    else merged[k] = String(v);
+  }
+  try {
+    writeAdapterConfig(file, merged);
+    const re = readProjectFile(file);
+    return { ok: true, file, adapter_config: re?.adapterConfig || {} };
+  } catch (e) {
+    return { error: e.message };
+  }
 });
 
 // ── subprocess management ──────────────────────────────────────────
