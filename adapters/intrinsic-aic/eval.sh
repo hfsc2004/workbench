@@ -19,6 +19,9 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
+SUBMISSION_DIR="${PSF_AIC_SUBMISSION_DIR:-}"
+AUTO_BUILD_MODEL="${PSF_AIC_EVAL_BUILD_MODEL:-true}"
+
 echo "[intrinsic-aic/eval] Launching official evaluator"
 echo "                     workspace     = $PSF_AIC_WS"
 echo "                     compose file  = $COMPOSE_FILE"
@@ -36,6 +39,7 @@ fi
 echo "                     eval_visual   = $EVAL_VISUAL"
 echo "                     gazebo_gui    = $GAZEBO_GUI"
 echo "                     launch_rviz   = $LAUNCH_RVIZ"
+echo "                     auto_build    = $AUTO_BUILD_MODEL"
 echo
 
 cleanup() {
@@ -50,6 +54,17 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 cd "$PSF_AIC_WS"
+
+if [[ "$AUTO_BUILD_MODEL" == "true" ]]; then
+  if [[ -z "$SUBMISSION_DIR" || ! -d "$SUBMISSION_DIR" ]]; then
+    echo "[intrinsic-aic/eval] submission_dir is not set/valid; skipping model rebuild" >&2
+  elif [[ ! -f "$SUBMISSION_DIR/docker/Dockerfile" ]]; then
+    echo "[intrinsic-aic/eval] missing $SUBMISSION_DIR/docker/Dockerfile; skipping model rebuild" >&2
+  else
+    echo "[intrinsic-aic/eval] Building model image from submission project..."
+    docker build -f "$SUBMISSION_DIR/docker/Dockerfile" -t my-solution:v1 "$SUBMISSION_DIR"
+  fi
+fi
 
 # Always reset containers before Eval. If a previous run leaves aic_model in
 # lifecycle state "finalized", compose can reuse that stale container and the
