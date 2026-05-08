@@ -203,6 +203,9 @@ MODEL_DOCKER_ARGS=(
   -e "AIC_MODEL_PASSWD=CHANGE_IN_PROD"
   -e "RMW_IMPLEMENTATION=rmw_zenoh_cpp"
   -e "ZENOH_ROUTER_CHECK_ATTEMPTS=-1"
+  -e "AIC_VISION_MODEL_ENABLE=${PSF_AIC_VISION_MODEL_ENABLE:-0}"
+  -e "AIC_VISION_MODEL_PATH=${PSF_AIC_VISION_MODEL_PATH:-/ws_aic/src/aic_policy/data/models/vision_offset_model.npz}"
+  -e "AIC_VISION_CAPTURE_DIR=${PSF_AIC_VISION_CAPTURE_DIR:-/ws_aic/src/aic_policy_capture}"
   "$MODEL_IMAGE"
 )
 

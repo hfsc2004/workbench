@@ -107,6 +107,21 @@ config:
     default: false
     env: PSF_AIC_EVAL_VISUAL
 
+  vision_model_enable:
+    description: Enable model-based visual offset inference in policy runtime
+    default: false
+    env: PSF_AIC_VISION_MODEL_ENABLE
+
+  vision_model_path:
+    description: Path inside model container to the vision model file
+    default: /ws_aic/src/aic_policy/data/models/vision_offset_model.npz
+    env: PSF_AIC_VISION_MODEL_PATH
+
+  vision_capture_dir:
+    description: Path inside model container to save captured vision samples
+    default: /ws_aic/src/aic_policy_capture
+    env: PSF_AIC_VISION_CAPTURE_DIR
+
 # Diagnostic rules contributed to Workbench's Log Intelligence (later).
 # Empty for now; will populate as we capture lessons during development.
 diagnostics:

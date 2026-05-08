@@ -135,6 +135,9 @@ cmd_run() {
     export PSF_AIC_SUBMISSION_DIR="$(yaml_get_under "$project_file" adapter_config submission_dir)"
     export PSF_AIC_SUBMIT_REGION="$(yaml_get_under "$project_file" adapter_config submit_region)"
     export PSF_AIC_EVAL_VISUAL="$(yaml_get_under "$project_file" adapter_config eval_visual)"
+    export PSF_AIC_VISION_MODEL_ENABLE="$(yaml_get_under "$project_file" adapter_config vision_model_enable)"
+    export PSF_AIC_VISION_MODEL_PATH="$(yaml_get_under "$project_file" adapter_config vision_model_path)"
+    export PSF_AIC_VISION_CAPTURE_DIR="$(yaml_get_under "$project_file" adapter_config vision_capture_dir)"
   fi
 
   echo "[psf] project: $project_root"

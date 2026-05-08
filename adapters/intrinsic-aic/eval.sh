@@ -82,6 +82,11 @@ services:
       start_aic_engine:=true
       shutdown_on_aic_engine_exit:=true
       model_discovery_timeout_seconds:=600
+  model:
+    environment:
+      AIC_VISION_MODEL_ENABLE: "${PSF_AIC_VISION_MODEL_ENABLE:-0}"
+      AIC_VISION_MODEL_PATH: "${PSF_AIC_VISION_MODEL_PATH:-/ws_aic/src/aic_policy/data/models/vision_offset_model.npz}"
+      AIC_VISION_CAPTURE_DIR: "${PSF_AIC_VISION_CAPTURE_DIR:-/ws_aic/src/aic_policy_capture}"
 EOF
 
 if [[ "$EVAL_VISUAL" == "true" ]]; then

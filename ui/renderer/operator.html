@@ -949,6 +949,7 @@
       <div class="settings-body">
         <div class="settings-tabs">
           <div class="settings-tab active" data-settings-tab="global">Global</div>
+          <div class="settings-tab" data-settings-tab="vision">Vision Training</div>
           <div class="settings-tab" data-settings-tab="aws">AWS</div>
         </div>
         <div class="settings-panel" id="settings-panel-global">
@@ -987,6 +988,30 @@
             These values come from <code>workbench.project.yaml</code> under
             <code>adapter_config</code>. Submit mode requires
             <code>submit_team</code> and <code>submit_tag</code>.
+          </div>
+        </div>
+        <div class="settings-panel" id="settings-panel-vision">
+          <div class="aws-grid">
+            <div class="k">vision_model_enable</div>
+            <div class="v">
+              <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9deeb;">
+                <input id="vision-model-enable" type="checkbox" />
+                Enable model-based visual offset inference
+              </label>
+            </div>
+            <div class="k">vision_model_path</div>
+            <div class="v"><input id="vision-model-path" placeholder="/ws_aic/src/aic_policy/data/models/vision_offset_model.npz" /></div>
+            <div class="k">vision_capture_dir</div>
+            <div class="v"><input id="vision-capture-dir" placeholder="/ws_aic/src/aic_policy_capture" /></div>
+          </div>
+          <div class="aws-actions">
+            <button class="aws-save" id="vision-save">Save Settings</button>
+            <span class="aws-save-msg" id="vision-save-msg"></span>
+          </div>
+          <div class="aws-note">
+            These values write to <code>adapter_config</code> in
+            <code>workbench.project.yaml</code> and are injected into
+            runtime env as <code>AIC_VISION_*</code>.
           </div>
         </div>
       </div>
@@ -1059,6 +1084,8 @@
     const globalSave = document.getElementById('global-save');
     const globalClearScores = document.getElementById('global-clear-scores');
     const globalSaveMsg = document.getElementById('global-save-msg');
+    const visionSave = document.getElementById('vision-save');
+    const visionSaveMsg = document.getElementById('vision-save-msg');
     const deckBody = document.getElementById('deck-body');
     const savedFlag = document.getElementById('saved-flag');
 
@@ -1200,8 +1227,12 @@
       document.getElementById('aws-submit-region').value = cfg.submit_region || 'us-east-1';
       document.getElementById('aws-submission-dir').value = cfg.submission_dir || project.path;
       document.getElementById('global-eval-visual').checked = String(cfg.eval_visual || 'false') === 'true';
+      document.getElementById('vision-model-enable').checked = String(cfg.vision_model_enable || 'false') === 'true';
+      document.getElementById('vision-model-path').value = cfg.vision_model_path || '/ws_aic/src/aic_policy/data/models/vision_offset_model.npz';
+      document.getElementById('vision-capture-dir').value = cfg.vision_capture_dir || '/ws_aic/src/aic_policy_capture';
       awsSaveMsg.textContent = '';
       globalSaveMsg.textContent = '';
+      visionSaveMsg.textContent = '';
     }
 
     function showSettingsTab(name) {
@@ -1328,6 +1359,23 @@
       renderLastScores();
       globalSaveMsg.textContent = 'Cleared ✓';
       appendLog('[workbench] cleared last eval scores', 'system');
+    });
+
+    visionSave.addEventListener('click', async () => {
+      const updates = {
+        vision_model_enable: document.getElementById('vision-model-enable').checked ? 'true' : 'false',
+        vision_model_path: document.getElementById('vision-model-path').value.trim(),
+        vision_capture_dir: document.getElementById('vision-capture-dir').value.trim(),
+      };
+      visionSaveMsg.textContent = 'Saving…';
+      const res = await window.workbench.saveAdapterConfig(project.path, updates);
+      if (res?.error) {
+        visionSaveMsg.textContent = 'Save failed: ' + res.error;
+        appendLog('[workbench] settings save failed: ' + res.error, 'error');
+        return;
+      }
+      visionSaveMsg.textContent = 'Saved ✓';
+      appendLog('[workbench] vision settings saved to workbench.project.yaml', 'system');
     });
 
     showSettingsTab('global');
