@@ -32,8 +32,8 @@ let mainWindow = null;
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 760,
+    width: 1320,
+    height: 912,
     minWidth: 720,
     minHeight: 560,
     show: false,                  // show after first paint (no flash)
