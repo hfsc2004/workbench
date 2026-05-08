@@ -134,6 +134,7 @@ cmd_run() {
     export PSF_AIC_SUBMIT_TEAM="$(yaml_get_under "$project_file" adapter_config submit_team)"
     export PSF_AIC_SUBMISSION_DIR="$(yaml_get_under "$project_file" adapter_config submission_dir)"
     export PSF_AIC_SUBMIT_REGION="$(yaml_get_under "$project_file" adapter_config submit_region)"
+    export PSF_AIC_EVAL_VISUAL="$(yaml_get_under "$project_file" adapter_config eval_visual)"
   fi
 
   echo "[psf] project: $project_root"
