@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('workbench', {
 
   // operator view — read project + control runs
   readProject: (projectPath) => ipcRenderer.invoke('project:read', projectPath),
+  saveAdapterConfig: (projectPath, updates) =>
+    ipcRenderer.invoke('project:adapter-config-save', { projectPath, updates }),
   runStatus: () => ipcRenderer.invoke('run:status'),
   runStart: (projectPath, mode) =>
     ipcRenderer.invoke('run:start', { projectPath, mode }),

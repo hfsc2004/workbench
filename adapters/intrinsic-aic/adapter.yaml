@@ -22,16 +22,22 @@ modes:
       scoring. Use this while writing and iterating on your policy.
 
   # eval and submit modes will land later — for now they're handled by
-  # docker-compose path inherited from the AIC repo. Documented here so
-  # the adapter manifest is honest about what's missing.
+  # docker-compose path inherited from the AIC repo.
   eval:
-    status: not-yet-managed
-    fallback: |
-      cd "$PSF_AIC_WS" && docker compose -f docker/docker-compose.yaml up
+    script: eval.sh
+    needs:
+      - PSF_AIC_WS
+    description: |
+      Official evaluator stack (ground_truth off). Use this for real
+      qualification scoring checks.
   submit:
-    status: not-yet-managed
-    fallback: |
-      Use AIC-Submission/scripts/build.sh and push_ecr.sh for now.
+    script: submit.sh
+    needs:
+      - PSF_AIC_SUBMIT_TAG
+      - PSF_AIC_SUBMIT_TEAM
+    description: |
+      Build and push immutable submission image to AIC ECR with strict
+      preflight checks (auth, repository, tag collision).
 
 # Configuration knobs an AIC project can set in workbench.project.yaml under
 # `adapter_config:` — these become PSF_AIC_* env vars to the launcher.
@@ -76,6 +82,23 @@ config:
     default: sfp_sc_cable
     choices: [sfp_sc_cable, sfp_sc_cable_reversed]
     env: PSF_AIC_CABLE_TYPE
+
+  submit_tag:
+    description: Immutable ECR tag to push (e.g. v12)
+    env: PSF_AIC_SUBMIT_TAG
+
+  submit_team:
+    description: AIC team slug provisioned by Intrinsic
+    env: PSF_AIC_SUBMIT_TEAM
+
+  submission_dir:
+    description: Project root containing docker/Dockerfile for submission
+    env: PSF_AIC_SUBMISSION_DIR
+
+  submit_region:
+    description: AWS region for ECR
+    default: us-east-1
+    env: PSF_AIC_SUBMIT_REGION
 
 # Diagnostic rules contributed to Workbench's Log Intelligence (later).
 # Empty for now; will populate as we capture lessons during development.

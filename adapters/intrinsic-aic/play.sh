@@ -53,6 +53,7 @@ CABLE_TYPE="${PSF_AIC_CABLE_TYPE:-sfp_sc_cable}"
 EVAL_IMAGE="${PSF_AIC_EVAL_IMAGE:-ghcr.io/intrinsic-dev/aic/aic_eval:latest}"
 MODEL_IMAGE="${PSF_AIC_MODEL_IMAGE:-my-solution:v2}"
 START_ENGINE="${PSF_AIC_START_ENGINE:-true}"
+GPU_DEVICE="${PSF_AIC_GPU_DEVICE:-all}"
 
 # ── pre-flight ─────────────────────────────────────────────────────────
 
@@ -122,6 +123,7 @@ cat <<EOF
                      attach_cable       = $ATTACH_CABLE
                      cable_type         = $CABLE_TYPE
                      start_aic_engine   = $START_ENGINE
+                     gpu_device         = $GPU_DEVICE
                      eval container     = $CONTAINER_NAME
                      model container    = $MODEL_CONTAINER_NAME
 
@@ -143,12 +145,22 @@ EOF
 EVAL_DOCKER_ARGS=(
   run
   --rm
-  --gpus all
+  --gpus "$GPU_DEVICE"
   --net host
   --name "$CONTAINER_NAME"
   -e "DISPLAY=${DISPLAY:-:0}"
   -e "QT_X11_NO_MITSHM=1"
-  -e "NVIDIA_DRIVER_CAPABILITIES=all"
+  # Prefer hardware GL in Gazebo / RViz on hybrid-GPU hosts.
+  # Without these hints, GLX may resolve to Mesa/llvmpipe even when
+  # CUDA/NVIDIA devices are visible in-container.
+  -e "NVIDIA_VISIBLE_DEVICES=$GPU_DEVICE"
+  -e "NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute,display"
+  -e "__NV_PRIME_RENDER_OFFLOAD=1"
+  -e "__GLX_VENDOR_LIBRARY_NAME=nvidia"
+  -e "__VK_LAYER_NV_optimus=NVIDIA_only"
+  -e "MESA_LOADER_DRIVER_OVERRIDE=nvidia"
+  -e "LIBGL_ALWAYS_SOFTWARE=0"
+  -e "QT_OPENGL=desktop"
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw
 )
 

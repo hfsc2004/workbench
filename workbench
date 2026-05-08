@@ -130,6 +130,10 @@ cmd_run() {
     export PSF_AIC_SPAWN_CABLE="$(yaml_get_under "$project_file" adapter_config spawn_cable)"
     export PSF_AIC_ATTACH_CABLE="$(yaml_get_under "$project_file" adapter_config attach_cable_to_gripper)"
     export PSF_AIC_CABLE_TYPE="$(yaml_get_under "$project_file" adapter_config cable_type)"
+    export PSF_AIC_SUBMIT_TAG="$(yaml_get_under "$project_file" adapter_config submit_tag)"
+    export PSF_AIC_SUBMIT_TEAM="$(yaml_get_under "$project_file" adapter_config submit_team)"
+    export PSF_AIC_SUBMISSION_DIR="$(yaml_get_under "$project_file" adapter_config submission_dir)"
+    export PSF_AIC_SUBMIT_REGION="$(yaml_get_under "$project_file" adapter_config submit_region)"
   fi
 
   echo "[psf] project: $project_root"
