@@ -4,6 +4,43 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>PSF Workbench — Operator</title>
+
+  <!--
+    CodeMirror 6 import map.
+
+    The CM dist files use bare specifiers (`from '@codemirror/state'`,
+    `from 'style-mod'`, etc.) which Electron's renderer cannot resolve on
+    its own. This map pins each specifier to the actual file under
+    node_modules so the dynamic imports below resolve cleanly. Without it,
+    the page falls through to the textarea fallback even when RUN_ONCE.sh
+    has installed everything.
+
+    If you bump CodeMirror or one of its transitive deps, double-check
+    the entry point of the new version (some ship from `src/`, others
+    from `dist/`).
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "@codemirror/state":           "../node_modules/@codemirror/state/dist/index.js",
+      "@codemirror/view":            "../node_modules/@codemirror/view/dist/index.js",
+      "@codemirror/commands":        "../node_modules/@codemirror/commands/dist/index.js",
+      "@codemirror/language":        "../node_modules/@codemirror/language/dist/index.js",
+      "@codemirror/lang-python":     "../node_modules/@codemirror/lang-python/dist/index.js",
+      "@codemirror/search":          "../node_modules/@codemirror/search/dist/index.js",
+      "@codemirror/autocomplete":    "../node_modules/@codemirror/autocomplete/dist/index.js",
+      "@codemirror/theme-one-dark":  "../node_modules/@codemirror/theme-one-dark/dist/index.js",
+      "@lezer/common":               "../node_modules/@lezer/common/dist/index.js",
+      "@lezer/highlight":            "../node_modules/@lezer/highlight/dist/index.js",
+      "@lezer/python":               "../node_modules/@lezer/python/dist/index.js",
+      "@marijn/find-cluster-break":  "../node_modules/@marijn/find-cluster-break/src/index.js",
+      "style-mod":                   "../node_modules/style-mod/src/style-mod.js",
+      "crelt":                       "../node_modules/crelt/index.js",
+      "w3c-keyname":                 "../node_modules/w3c-keyname/index.js"
+    }
+  }
+  </script>
+
   <link rel="stylesheet" href="styles.css" />
   <style>
     /* shared styles handle text selection — no overrides here */
@@ -561,10 +598,24 @@
     .log-line.error  { color: var(--bad); }
 
     .footer-strip {
-      text-align: center;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 24px;
       color: var(--fg-mute);
       font-size: 11px;
-      padding: 4px 0 10px;
+      padding: 4px 8px 10px;
+    }
+    .footer-strip .tip { flex: 1; text-align: center; }
+    .footer-strip .credit {
+      flex: 0 0 auto;
+      opacity: 0.85;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+    .footer-strip .credit .ver {
+      color: var(--fg-dim);
+      margin-right: 8px;
     }
   </style>
 </head>
@@ -675,7 +726,12 @@
     </section>
 
     <div class="footer-strip">
-      Tip: Play mode opens Gazebo as a separate desktop window. Tweak a behavior here, click Save &amp; Generate, then click Run.
+      <span class="tip">
+        Tip: Play mode opens Gazebo as a separate desktop window. Tweak a behavior here, click Save &amp; Generate, then click Run.
+      </span>
+      <span class="credit">
+        <span class="ver">v0.2.0</span>Copyright 2026 Pseudo Science Fiction
+      </span>
     </div>
 
   </div>
@@ -695,21 +751,23 @@
     'use strict';
 
     // CodeMirror 6 — loaded as ESM from the bundled npm install. RUN_ONCE.sh
-    // installs these. If a fresh repo skipped that step, we fall back to
-    // a plain <textarea> so the Code tab still functions.
+    // installs these. The bare specifiers below are resolved by the import
+    // map in <head>. If a fresh repo skipped install (or the import map
+    // and node_modules disagree), we fall back to a plain <textarea> so
+    // the Code tab still functions.
     let CM = null;
     try {
       const [
         stateMod, viewMod, cmdMod, langMod, pyMod, searchMod, autoMod, themeMod,
       ] = await Promise.all([
-        import('../node_modules/@codemirror/state/dist/index.js'),
-        import('../node_modules/@codemirror/view/dist/index.js'),
-        import('../node_modules/@codemirror/commands/dist/index.js'),
-        import('../node_modules/@codemirror/language/dist/index.js'),
-        import('../node_modules/@codemirror/lang-python/dist/index.js'),
-        import('../node_modules/@codemirror/search/dist/index.js'),
-        import('../node_modules/@codemirror/autocomplete/dist/index.js'),
-        import('../node_modules/@codemirror/theme-one-dark/dist/index.js'),
+        import('@codemirror/state'),
+        import('@codemirror/view'),
+        import('@codemirror/commands'),
+        import('@codemirror/language'),
+        import('@codemirror/lang-python'),
+        import('@codemirror/search'),
+        import('@codemirror/autocomplete'),
+        import('@codemirror/theme-one-dark'),
       ]);
       CM = {
         state: stateMod,

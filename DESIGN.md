@@ -962,6 +962,6 @@ Three reasons Workbench can do what others have failed at:
 
 ---
 
-*Author: Aaron / Pseudo Science Fiction.
-Last updated: 2026-05-07. To be revised after the AIC qualification
+*Copyright 2026 Pseudo Science Fiction.
+Last updated: 2026-05-08. To be revised after the AIC qualification
 submission and the Lessons File are complete.*
