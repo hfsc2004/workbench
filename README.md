@@ -19,7 +19,7 @@ ROS 2 ecosystem (Gazebo, MoveIt, Nav2, ros2_control, vendor SDKs); the
 architecture is designed to extend to MuJoCo, microcontroller endpoints
 (ESP32, RP2040), and industrial protocols (PLC, Modbus, OPC-UA).
 
-## Status — v0.2.0
+## Status — v0.2.5
 
 What ships now:
 

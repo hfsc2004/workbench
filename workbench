@@ -151,7 +151,7 @@ cmd_run() {
 
 cmd_help() {
   cat <<EOF
-workbench — robotics workbench, v0.2.0
+workbench — robotics workbench, v0.2.5
 
 usage:
   workbench <verb> [args]
