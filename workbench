@@ -143,7 +143,7 @@ cmd_run() {
 
 cmd_help() {
   cat <<EOF
-workbench — robotics workbench, v0.1.1
+workbench — robotics workbench, v0.2.0
 
 usage:
   workbench <verb> [args]
@@ -161,6 +161,8 @@ adapters live under: $ADAPTERS_DIR
 
 currently installed adapters:
 $(ls -1 "$ADAPTERS_DIR" 2>/dev/null | sed 's/^/  - /' || echo "  (none)")
+
+Copyright 2026 Pseudo Science Fiction
 EOF
 }
 

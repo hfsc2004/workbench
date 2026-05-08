@@ -110,6 +110,21 @@
       color: var(--fg-dim);
       border-color: var(--card-edge);
     }
+
+    .credit {
+      position: fixed;
+      bottom: 18px;
+      left: 22px;
+      font-size: 11px;
+      letter-spacing: 0.3px;
+      color: var(--fg-mute);
+      line-height: 1.7;
+      opacity: 0;
+      animation: fadeIn 400ms ease forwards 1500ms;
+      pointer-events: none;
+      user-select: none;
+    }
+    .credit .ver { display: block; opacity: 0.85; }
   </style>
 </head>
 <body>
@@ -126,6 +141,11 @@
   </div>
 
   <a class="skip" id="skip">skip</a>
+
+  <div class="credit">
+    <span class="ver">v0.2.0</span>
+    Copyright 2026 Pseudo Science Fiction
+  </div>
 
   <script>
     'use strict';
