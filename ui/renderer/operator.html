@@ -184,6 +184,28 @@
     .mode.disabled { opacity: 0.5; cursor: not-allowed; }
     .mode.disabled::after { content: ' (soon)'; color: var(--warn); font-size: 10px; }
 
+    .last-scores {
+      min-width: 320px;
+      max-width: 520px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--card-edge);
+      background: rgba(255,255,255,0.015);
+      color: var(--fg-mute);
+      font-family: var(--mono);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+    .last-scores .age {
+      color: var(--fg-mute);
+      opacity: 0.85;
+      margin-left: 6px;
+      font-size: 10px;
+    }
+
     .controls .spacer { flex: 1; }
     .btn-run {
       background: var(--accent);
@@ -252,6 +274,21 @@
       text-decoration: none;
     }
     .pane-head a:hover { color: var(--fg-dim); }
+    .log-actions {
+      display: inline-flex;
+      gap: 6px;
+      margin-right: 2px;
+    }
+    .log-btn {
+      border: 1px solid var(--card-edge);
+      background: rgba(255,255,255,0.02);
+      color: var(--fg-dim);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .log-btn:hover { border-color: rgba(111, 202, 177, 0.35); color: var(--fg); }
     .pane-head .interpreter::before {
       content: '';
       display: inline-block;
@@ -342,7 +379,9 @@
     .settings-panel {
       padding: 16px;
       overflow: auto;
+      display: none;
     }
+    .settings-panel.active { display: block; }
     .aws-grid {
       display: grid;
       grid-template-columns: 190px 1fr;
@@ -801,6 +840,7 @@
           <div class="mode" data-mode="eval">Eval</div>
           <div class="mode" data-mode="submit">Submit</div>
         </div>
+        <div class="last-scores" id="last-scores">Last Scores: none</div>
         <div class="spacer"></div>
         <button class="btn-stop" id="btn-stop" disabled>Stop</button>
         <button class="btn-run" id="btn-run">Run Play mode</button>
@@ -862,7 +902,13 @@
       <div class="pane">
         <div class="pane-head">
           <span>Run output</span>
-          <span class="right"><span class="interpreter">live</span></span>
+          <span class="right">
+            <span class="log-actions">
+              <button class="log-btn" id="log-copy">Copy</button>
+              <button class="log-btn" id="log-download">Download</button>
+            </span>
+            <span class="interpreter">live</span>
+          </span>
         </div>
         <div class="log-body" id="log">
           <div class="empty">No run yet. Tweak the deck on the left and click "Run Play mode".</div>
@@ -902,7 +948,29 @@
       </div>
       <div class="settings-body">
         <div class="settings-tabs">
-          <div class="settings-tab active" data-settings-tab="aws">AWS</div>
+          <div class="settings-tab active" data-settings-tab="global">Global</div>
+          <div class="settings-tab" data-settings-tab="aws">AWS</div>
+        </div>
+        <div class="settings-panel" id="settings-panel-global">
+          <div class="aws-grid">
+            <div class="k">eval_visual</div>
+            <div class="v">
+              <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9deeb;">
+                <input id="global-eval-visual" type="checkbox" />
+                Enable Gazebo/RViz during Eval (debug view)
+              </label>
+            </div>
+          </div>
+          <div class="aws-actions">
+            <button class="aws-save" id="global-save">Save Settings</button>
+            <button class="aws-save" id="global-clear-scores" style="background:#4a1f1f;border-color:#6c2d2d;">Clear Last Scores</button>
+            <span class="aws-save-msg" id="global-save-msg"></span>
+          </div>
+          <div class="aws-note">
+            This writes <code>adapter_config.eval_visual</code> in
+            <code>workbench.project.yaml</code>. Keep it
+            <code>false</code> for strict official-headless parity.
+          </div>
         </div>
         <div class="settings-panel" id="settings-panel-aws">
           <div class="aws-grid">
@@ -912,7 +980,7 @@
             <div class="k">submission_dir</div><div class="v"><input id="aws-submission-dir" /></div>
           </div>
           <div class="aws-actions">
-            <button class="aws-save" id="aws-save">Save AWS Settings</button>
+            <button class="aws-save" id="aws-save">Save Settings</button>
             <span class="aws-save-msg" id="aws-save-msg"></span>
           </div>
           <div class="aws-note">
@@ -979,15 +1047,25 @@
     const btnStop = document.getElementById('btn-stop');
     const modesEl = document.getElementById('modes');
     const btnSettings = document.getElementById('btn-settings');
+    const logCopyBtn = document.getElementById('log-copy');
+    const logDownloadBtn = document.getElementById('log-download');
+    const lastScoresEl = document.getElementById('last-scores');
     const settingsModal = document.getElementById('settings-modal');
     const settingsClose = document.getElementById('settings-close');
+    const settingsTabs = document.querySelectorAll('.settings-tab');
+    const settingsPanels = document.querySelectorAll('.settings-panel');
     const awsSave = document.getElementById('aws-save');
     const awsSaveMsg = document.getElementById('aws-save-msg');
+    const globalSave = document.getElementById('global-save');
+    const globalClearScores = document.getElementById('global-clear-scores');
+    const globalSaveMsg = document.getElementById('global-save-msg');
     const deckBody = document.getElementById('deck-body');
     const savedFlag = document.getElementById('saved-flag');
 
     let selectedMode = 'play';
+    let currentRunMode = null;
     let runActive = false;
+    let evalScoreDraft = null;
     let cardLib = null;       // { cards: [...], globals: {...} }
     let deck = {              // current in-memory deck
       adapter: project?.adapter || 'intrinsic-aic',
@@ -1008,6 +1086,11 @@
       log.appendChild(line);
       log.scrollTop = log.scrollHeight;
     }
+    function getLogText() {
+      return Array.from(log.querySelectorAll('.log-line'))
+        .map((n) => n.textContent || '')
+        .join('\n');
+    }
 
     function setStatus(state, text) {
       statusPill.className = 'status-pill ' + state;
@@ -1020,6 +1103,94 @@
       btnRun.textContent = active ? 'Running…' : 'Run ' + cap(selectedMode) + ' mode';
     }
     function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+    function scoreStoreKey() {
+      return `workbench:lastScores:${project?.path || 'unknown'}`;
+    }
+    function stripAnsi(s) {
+      return String(s || '').replace(/\x1B\[[0-9;]*[A-Za-z]/g, '');
+    }
+    function loadLastScores() {
+      try {
+        const raw = localStorage.getItem(scoreStoreKey());
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (_) { return null; }
+    }
+    function saveLastScores(obj) {
+      try { localStorage.setItem(scoreStoreKey(), JSON.stringify(obj)); }
+      catch (_) {}
+    }
+    function clearLastScores() {
+      try { localStorage.removeItem(scoreStoreKey()); }
+      catch (_) {}
+    }
+    function formatScores(s) {
+      if (!s) return 'Last Scores: none';
+      const t = (n) => (Number.isFinite(n) ? Number(n).toFixed(3) : 'n/a');
+      return `Last Scores: total ${t(s.total)} | t1 ${t(s.trial1)} | t2 ${t(s.trial2)} | t3 ${t(s.trial3)}`;
+    }
+    function formatAge(ts) {
+      if (!Number.isFinite(ts)) return '';
+      const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+      if (sec < 60) return `${sec}s ago`;
+      const min = Math.floor(sec / 60);
+      if (min < 60) return `${min}m ago`;
+      const hr = Math.floor(min / 60);
+      if (hr < 48) return `${hr}h ago`;
+      const day = Math.floor(hr / 24);
+      return `${day}d ago`;
+    }
+    function renderLastScores() {
+      const s = loadLastScores();
+      const txt = formatScores(s);
+      const age = s?.updatedAt ? formatAge(Number(s.updatedAt)) : '';
+      if (!age || txt === 'Last Scores: none') {
+        lastScoresEl.textContent = txt;
+        return;
+      }
+      lastScoresEl.innerHTML = `${escapeHtml(txt)} <span class="age">(updated ${escapeHtml(age)})</span>`;
+    }
+    function ingestEvalScoreLine(line) {
+      if (!evalScoreDraft) return;
+      const clean = stripAnsi(line).trim();
+      let m = clean.match(/Total Score:\s*(-?\d+(?:\.\d+)?)/i);
+      if (m) { evalScoreDraft.total = Number(m[1]); return; }
+
+      m = clean.match(/\btotal:\s*(-?\d+(?:\.\d+)?)/i);
+      if (m) { evalScoreDraft.total = Number(m[1]); return; }
+
+      m = clean.match(/\bTrial\s+([1-3])\/3:/i);
+      if (m) {
+        evalScoreDraft._currentTrial = Number(m[1]);
+        return;
+      }
+
+      m = clean.match(/\btrial_([1-3]):/i);
+      if (m) {
+        evalScoreDraft._currentTrial = Number(m[1]);
+        return;
+      }
+
+      // aic_engine warning format:
+      // "... Trial 'trial_2' failed ... Score: 1.000000 ..."
+      m = clean.match(/trial_([1-3])[^\\n]*\bScore:\s*(-?\d+(?:\.\d+)?)/i);
+      if (m) {
+        evalScoreDraft[`trial${Number(m[1])}`] = Number(m[2]);
+        return;
+      }
+
+      // nested summary format:
+      // trial_1:
+      //   score: 1
+      // We only take this when we know which trial block we're in.
+      m = clean.match(/\bscore:\s*(-?\d+(?:\.\d+)?)/i);
+      if (m && Number.isFinite(evalScoreDraft._currentTrial)) {
+        const key = `trial${evalScoreDraft._currentTrial}`;
+        if (!Number.isFinite(evalScoreDraft[key])) {
+          evalScoreDraft[key] = Number(m[1]);
+        }
+      }
+    }
 
     async function refreshAwsSettings() {
       const d = await window.workbench.readProject(project.path);
@@ -1028,7 +1199,14 @@
       document.getElementById('aws-submit-tag').value = cfg.submit_tag || '';
       document.getElementById('aws-submit-region').value = cfg.submit_region || 'us-east-1';
       document.getElementById('aws-submission-dir').value = cfg.submission_dir || project.path;
+      document.getElementById('global-eval-visual').checked = String(cfg.eval_visual || 'false') === 'true';
       awsSaveMsg.textContent = '';
+      globalSaveMsg.textContent = '';
+    }
+
+    function showSettingsTab(name) {
+      settingsTabs.forEach((t) => t.classList.toggle('active', t.dataset.settingsTab === name));
+      settingsPanels.forEach((p) => p.classList.toggle('active', p.id === `settings-panel-${name}`));
     }
 
     function openSettings() {
@@ -1071,11 +1249,46 @@
 
     btnSettings.addEventListener('click', openSettings);
     settingsClose.addEventListener('click', closeSettings);
+    settingsTabs.forEach((tab) => {
+      tab.addEventListener('click', () => showSettingsTab(tab.dataset.settingsTab));
+    });
     settingsModal.addEventListener('click', (e) => {
       if (e.target === settingsModal) closeSettings();
     });
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && settingsModal.classList.contains('open')) closeSettings();
+    });
+    logCopyBtn.addEventListener('click', async () => {
+      const txt = getLogText();
+      if (!txt.trim()) {
+        appendLog('[workbench] nothing to copy from run output', 'system');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(txt);
+        appendLog('[workbench] run output copied to clipboard', 'system');
+      } catch (e) {
+        appendLog('[workbench] copy failed: ' + (e?.message || e), 'error');
+      }
+    });
+    logDownloadBtn.addEventListener('click', () => {
+      const txt = getLogText();
+      if (!txt.trim()) {
+        appendLog('[workbench] nothing to download from run output', 'system');
+        return;
+      }
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const mode = currentRunMode || selectedMode || 'run';
+      const blob = new Blob([txt + '\n'], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      const href = URL.createObjectURL(blob);
+      a.href = href;
+      a.download = `workbench-${mode}-output-${stamp}.log`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+      appendLog('[workbench] run output downloaded', 'system');
     });
 
     awsSave.addEventListener('click', async () => {
@@ -1093,8 +1306,33 @@
         return;
       }
       awsSaveMsg.textContent = 'Saved ✓';
-      appendLog('[workbench] AWS settings saved to workbench.project.yaml', 'system');
+      appendLog('[workbench] settings saved to workbench.project.yaml', 'system');
     });
+
+    globalSave.addEventListener('click', async () => {
+      const updates = {
+        eval_visual: document.getElementById('global-eval-visual').checked ? 'true' : 'false',
+      };
+      globalSaveMsg.textContent = 'Saving…';
+      const res = await window.workbench.saveAdapterConfig(project.path, updates);
+      if (res?.error) {
+        globalSaveMsg.textContent = 'Save failed: ' + res.error;
+        appendLog('[workbench] settings save failed: ' + res.error, 'error');
+        return;
+      }
+      globalSaveMsg.textContent = 'Saved ✓';
+      appendLog('[workbench] settings saved to workbench.project.yaml', 'system');
+    });
+    globalClearScores.addEventListener('click', () => {
+      clearLastScores();
+      renderLastScores();
+      globalSaveMsg.textContent = 'Cleared ✓';
+      appendLog('[workbench] cleared last eval scores', 'system');
+    });
+
+    showSettingsTab('global');
+    renderLastScores();
+    setInterval(() => renderLastScores(), 1000);
 
     // ── run / stop ─────────────────────────────────────────────────
     btnRun.addEventListener('click', async () => {
@@ -1120,15 +1358,27 @@
     window.workbench.onRunEvent((evt) => {
       switch (evt.type) {
         case 'started':
+          currentRunMode = evt.mode || null;
+          evalScoreDraft = (currentRunMode === 'eval')
+            ? { total: null, trial1: null, trial2: null, trial3: null, updatedAt: Date.now() }
+            : null;
           appendLog('[workbench] pid ' + evt.pid + ' running ' + evt.mode + ' mode', 'system');
           setStatus('running', 'Running');
           setRunActive(true);
           break;
         case 'stdout':
-          if (evt.text) evt.text.split('\n').forEach(l => l.length && appendLog(l));
+          if (evt.text) evt.text.split('\n').forEach((l) => {
+            if (!l.length) return;
+            appendLog(l);
+            if (currentRunMode === 'eval') ingestEvalScoreLine(l);
+          });
           break;
         case 'stderr':
-          if (evt.text) evt.text.split('\n').forEach(l => l.length && appendLog(l, 'stderr'));
+          if (evt.text) evt.text.split('\n').forEach((l) => {
+            if (!l.length) return;
+            appendLog(l, 'stderr');
+            if (currentRunMode === 'eval') ingestEvalScoreLine(l);
+          });
           break;
         case 'error':
           appendLog('[workbench] error: ' + evt.message, 'error');
@@ -1144,6 +1394,14 @@
             appendLog('[workbench] run exited code=' + evt.code + ' after ' + sec + 's', 'error');
             setStatus('error', 'Exited (' + (evt.code ?? 'signal') + ')');
           }
+          if (currentRunMode === 'eval' && evalScoreDraft) {
+            evalScoreDraft.updatedAt = Date.now();
+            delete evalScoreDraft._currentTrial;
+            saveLastScores(evalScoreDraft);
+            renderLastScores();
+          }
+          currentRunMode = null;
+          evalScoreDraft = null;
           setRunActive(false);
           break;
       }

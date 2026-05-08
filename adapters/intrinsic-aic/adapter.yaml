@@ -100,6 +100,13 @@ config:
     default: us-east-1
     env: PSF_AIC_SUBMIT_REGION
 
+  eval_visual:
+    description: |
+      When true, Eval launches Gazebo/RViz for human debugging. Keep false
+      for strict headless parity with official scoring behavior.
+    default: false
+    env: PSF_AIC_EVAL_VISUAL
+
 # Diagnostic rules contributed to Workbench's Log Intelligence (later).
 # Empty for now; will populate as we capture lessons during development.
 diagnostics:
