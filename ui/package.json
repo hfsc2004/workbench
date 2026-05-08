@@ -1,6 +1,6 @@
 {
   "name": "workbench-ui",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "PSF Workbench desktop UI — splash, chooser, onboarding, operator views.",
   "main": "main.js",
   "private": true,

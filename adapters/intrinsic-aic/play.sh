@@ -4,9 +4,11 @@
 # Owned by Workbench's intrinsic-aic adapter pack. Invoked indirectly
 # via `workbench run --mode play` from a project directory.
 #
-# Play mode brings up the AIC sim WITHOUT the evaluator: sim + controllers
-# + task board + cable on the gripper, all visible. No engine, no scoring,
-# no fixed trial schedule. The user iterates on their policy against this.
+# Play mode brings up the AIC sim AND the user's policy so the iteration
+# loop is "edit policy.py → click Play → watch in Gazebo". Two containers
+# share localhost via `--net host`:
+#   - eval container  : sim + controllers + aic_engine (dispatches the task)
+#   - model container : aic_model loading the project's policy class
 #
 # Implementation note:
 #   The AIC eval Docker image (ghcr.io/intrinsic-dev/aic/aic_eval) ships
@@ -14,7 +16,7 @@
 #   run the launch file from the host pixi workspace fails because
 #   aic_bringup is not in the pixi env (only aic_model, aic_interfaces,
 #   and aic_example_policies are). So Play mode runs the launch file
-#   *inside* the eval container, just with engine-disabled args.
+#   *inside* the eval container.
 #
 # Inputs (env vars, supplied by Workbench's CLI from workbench.project.yaml):
 #   PSF_AIC_WS                  Path to the AIC pixi workspace
@@ -28,6 +30,13 @@
 #   PSF_AIC_ATTACH_CABLE        Attach cable to gripper at start (true/false)
 #   PSF_AIC_CABLE_TYPE          Cable model (sfp_sc_cable | sfp_sc_cable_reversed)
 #   PSF_AIC_EVAL_IMAGE          Override eval image (default: ghcr.io/intrinsic-dev/aic/aic_eval:latest)
+#   PSF_AIC_MODEL_IMAGE         Submission image holding the policy class
+#                               (default: my-solution:v2 — the locally-built image
+#                                that derives from aic_model and installs the
+#                                project's reflex_policy package)
+#   PSF_AIC_START_ENGINE        Engine on/off in Play mode (default: true).
+#                               Set to false for the legacy "sim only, no task
+#                               dispatch" behavior.
 
 set -euo pipefail
 
@@ -42,6 +51,8 @@ SPAWN_CABLE="${PSF_AIC_SPAWN_CABLE:-true}"
 ATTACH_CABLE="${PSF_AIC_ATTACH_CABLE:-true}"
 CABLE_TYPE="${PSF_AIC_CABLE_TYPE:-sfp_sc_cable}"
 EVAL_IMAGE="${PSF_AIC_EVAL_IMAGE:-ghcr.io/intrinsic-dev/aic/aic_eval:latest}"
+MODEL_IMAGE="${PSF_AIC_MODEL_IMAGE:-my-solution:v2}"
+START_ENGINE="${PSF_AIC_START_ENGINE:-true}"
 
 # ── pre-flight ─────────────────────────────────────────────────────────
 
@@ -53,6 +64,14 @@ fi
 if ! docker image inspect "$EVAL_IMAGE" >/dev/null 2>&1; then
   echo "[intrinsic-aic/play] eval image not pulled locally: $EVAL_IMAGE" >&2
   echo "[intrinsic-aic/play] run: docker pull $EVAL_IMAGE" >&2
+  exit 1
+fi
+
+if ! docker image inspect "$MODEL_IMAGE" >/dev/null 2>&1; then
+  echo "[intrinsic-aic/play] model image not built locally: $MODEL_IMAGE" >&2
+  echo "[intrinsic-aic/play] build it from your project, e.g.:" >&2
+  echo "[intrinsic-aic/play]   cd <your project>; docker build -f docker/Dockerfile -t $MODEL_IMAGE ." >&2
+  echo "[intrinsic-aic/play] or override with PSF_AIC_MODEL_IMAGE=<your image>." >&2
   exit 1
 fi
 
@@ -70,25 +89,31 @@ cleanup() {
   if (( XHOST_GRANTED == 1 )) && command -v xhost >/dev/null 2>&1; then
     xhost -local:docker >/dev/null 2>&1 || true
   fi
-  # If the container we started is still around, stop it cleanly.
-  if [[ -n "${CONTAINER_NAME:-}" ]]; then
-    docker stop -t 5 "$CONTAINER_NAME" >/dev/null 2>&1 || true
-    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
-  fi
+  # If either container we started is still around, stop it cleanly.
+  for n in "${MODEL_CONTAINER_NAME:-}" "${CONTAINER_NAME:-}"; do
+    [[ -z "$n" ]] && continue
+    docker stop -t 5 "$n" >/dev/null 2>&1 || true
+    docker rm -f "$n" >/dev/null 2>&1 || true
+  done
 }
 trap cleanup EXIT INT TERM
 
 CONTAINER_NAME="workbench-aic-play-$$"
+MODEL_CONTAINER_NAME="workbench-aic-model-$$"
 
 # Machine-readable line so the parent process (Workbench main) can capture
 # the container name and kill it directly on shutdown. This is the
 # belt-and-suspenders that protects against a forceful Electron exit not
-# letting our trap finish.
+# letting our trap finish. Workbench's main.js currently captures the first
+# match only; the model container is caught by the orphan sweep on the
+# `workbench-aic-` name prefix or by this script's trap.
 echo "[workbench-meta] container_name=$CONTAINER_NAME"
+echo "[workbench-meta] model_container_name=$MODEL_CONTAINER_NAME"
 
 cat <<EOF
 [intrinsic-aic/play] Launching Play mode
-                     image              = $EVAL_IMAGE
+                     eval image         = $EVAL_IMAGE
+                     model image        = $MODEL_IMAGE
                      gazebo_gui         = $GUI
                      launch_rviz        = $RVIZ
                      ground_truth       = $GROUND_TRUTH
@@ -96,9 +121,10 @@ cat <<EOF
                      spawn_cable        = $SPAWN_CABLE
                      attach_cable       = $ATTACH_CABLE
                      cable_type         = $CABLE_TYPE
-                     container          = $CONTAINER_NAME
+                     start_aic_engine   = $START_ENGINE
+                     eval container     = $CONTAINER_NAME
+                     model container    = $MODEL_CONTAINER_NAME
 
-                     no aic_engine, no scoring, no trial schedule
                      ctrl-c to stop
 EOF
 
@@ -114,7 +140,7 @@ EOF
 #   -v /tmp/.X11-unix       X11 socket
 #   -v $XAUTHORITY          X11 auth cookie
 
-DOCKER_ARGS=(
+EVAL_DOCKER_ARGS=(
   run
   --rm
   --gpus all
@@ -127,16 +153,16 @@ DOCKER_ARGS=(
 )
 
 if [[ -n "${XAUTHORITY:-}" && -f "$XAUTHORITY" ]]; then
-  DOCKER_ARGS+=( -v "$XAUTHORITY:/root/.Xauthority:rw" )
+  EVAL_DOCKER_ARGS+=( -v "$XAUTHORITY:/root/.Xauthority:rw" )
 fi
 
-DOCKER_ARGS+=( "$EVAL_IMAGE" )
+EVAL_DOCKER_ARGS+=( "$EVAL_IMAGE" )
 
 # Args to the eval image's entrypoint. The image's entrypoint already
 # does `ros2 launch aic_bringup aic_gz_bringup.launch.py "$@"`, so we
 # just pass the launch arguments here.
-LAUNCH_ARGS=(
-  start_aic_engine:=false
+EVAL_LAUNCH_ARGS=(
+  start_aic_engine:=$START_ENGINE
   shutdown_on_aic_engine_exit:=false
   gazebo_gui:=$GUI
   launch_rviz:=$RVIZ
@@ -147,7 +173,40 @@ LAUNCH_ARGS=(
   cable_type:=$CABLE_TYPE
 )
 
-# Run. Using exec would replace this shell, but we need the trap to fire,
-# so we don't exec — we let docker run be a child and propagate its exit
-# status.
-docker "${DOCKER_ARGS[@]}" "${LAUNCH_ARGS[@]}"
+# Model container args. With `--net host`, both eval and model talk to the
+# Zenoh router on localhost:7447. The model image's entrypoint calls
+# `ros2 run aic_model aic_model "$@"`, so the CMD baked into the image
+# (e.g. `--ros-args -p policy:=reflex_policy.ReflexPolicy ...`) is what
+# selects which policy class loads.
+#
+# No --gpus here. The policy is pure Python + ros2 messaging; it doesn't
+# render or run CUDA. Sharing the GPU with Gazebo causes EGL/DRI2 init
+# races on dual-GPU setups (Maxwell + headless compute).
+MODEL_DOCKER_ARGS=(
+  run
+  --rm
+  --net host
+  --name "$MODEL_CONTAINER_NAME"
+  -e "AIC_ROUTER_ADDR=localhost:7447"
+  -e "AIC_MODEL_PASSWD=CHANGE_IN_PROD"
+  -e "RMW_IMPLEMENTATION=rmw_zenoh_cpp"
+  -e "ZENOH_ROUTER_CHECK_ATTEMPTS=-1"
+  "$MODEL_IMAGE"
+)
+
+# Eval first, in the background. Give it a head start so its EGL/Gazebo
+# init doesn't race with the model container loading ROS/Zenoh. The model
+# container's ZENOH_ROUTER_CHECK_ATTEMPTS=-1 will retry the router
+# connection until eval is fully up, so the sleep is just a buffer to let
+# Gazebo's renderer claim its GPU contexts first.
+docker "${EVAL_DOCKER_ARGS[@]}" "${EVAL_LAUNCH_ARGS[@]}" &
+EVAL_PID=$!
+
+sleep 8
+
+docker "${MODEL_DOCKER_ARGS[@]}" &
+MODEL_PID=$!
+
+# Wait for whichever container exits first, then let the trap clean up the
+# other. The exit status of `wait -n` is the status of the first to finish.
+wait -n "$EVAL_PID" "$MODEL_PID"
