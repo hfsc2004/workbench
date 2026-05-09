@@ -149,6 +149,42 @@ cmd_run() {
   exec "$mode_script"
 }
 
+cmd_diagnose() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help) echo "usage: workbench diagnose"; return 0 ;;
+      *) die "unknown arg: $1" ;;
+    esac
+  done
+
+  local project_root
+  project_root="$(find_project_root)" \
+    || die "no workbench.project.yaml found in this directory or any parent."
+
+  local project_file="$project_root/workbench.project.yaml"
+  local adapter
+  adapter="$(yaml_get "$project_file" adapter)"
+  [[ -n "$adapter" ]] || die "workbench.project.yaml has no 'adapter:' field"
+
+  local diagnose_script="$ADAPTERS_DIR/$adapter/diagnose.sh"
+  if [[ ! -x "$diagnose_script" ]]; then
+    if [[ -f "$diagnose_script" ]]; then
+      die "adapter $adapter has diagnose.sh but it isn't executable.
+        fix: chmod +x $diagnose_script"
+    else
+      die "adapter $adapter does not implement 'diagnose' yet.
+        looked for: $diagnose_script"
+    fi
+  fi
+
+  echo "[psf] project: $project_root"
+  echo "[psf] adapter: $adapter"
+  echo "[psf] →       $diagnose_script"
+  echo
+
+  exec "$diagnose_script"
+}
+
 cmd_help() {
   cat <<EOF
 workbench — robotics workbench, v0.2.5
@@ -158,10 +194,11 @@ usage:
 
 verbs implemented:
   run --mode <play|eval|submit>   run the project in the named mode
+  diagnose                        inventory ROS topics in the running model container
   help                            this message
 
 planned verbs:
-  stop, log, diagnose, fingerprint, package, push, submit,
+  stop, log, fingerprint, package, push, submit,
   replay, audit, sync, store
 
 a Workbench project is identified by a workbench.project.yaml at its root.
@@ -186,6 +223,7 @@ shift
 
 case "$verb" in
   run)            cmd_run "$@" ;;
+  diagnose)       cmd_diagnose "$@" ;;
   help|-h|--help) cmd_help ;;
   *)              die "unknown verb: $verb (try: workbench help)" ;;
 esac
