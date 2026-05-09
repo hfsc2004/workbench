@@ -84,11 +84,29 @@ yaml_get_under() {
 
 cmd_run() {
   local mode=""
+  # Visual overrides: empty = honor YAML, "true"/"false" = override.
+  local gui_override=""
+  local rviz_override=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --mode) mode="$2"; shift 2 ;;
       --mode=*) mode="${1#--mode=}"; shift ;;
-      -h|--help) echo "usage: workbench run --mode <play|eval|submit>"; return 0 ;;
+      --gui) gui_override="true"; shift ;;
+      --no-gui) gui_override="false"; shift ;;
+      --rviz) rviz_override="true"; shift ;;
+      --no-rviz) rviz_override="false"; shift ;;
+      --headless) gui_override="false"; rviz_override="false"; shift ;;
+      -h|--help)
+        cat <<USAGE
+usage: workbench run --mode <play|eval|submit> [flags]
+
+flags:
+  --gui / --no-gui      override Gazebo window (default: honor YAML)
+  --rviz / --no-rviz    override RViz window  (default: honor YAML)
+  --headless            shorthand for --no-gui --no-rviz
+USAGE
+        return 0
+        ;;
       *) die "unknown arg: $1" ;;
     esac
   done
@@ -140,11 +158,17 @@ cmd_run() {
     export PSF_AIC_VISION_MODEL_ENABLE="$(yaml_get_under "$project_file" adapter_config vision_model_enable)"
     export PSF_AIC_VISION_MODEL_PATH="$(yaml_get_under "$project_file" adapter_config vision_model_path)"
     export PSF_AIC_VISION_CAPTURE_DIR="$(yaml_get_under "$project_file" adapter_config vision_capture_dir)"
+    # CLI flags override YAML when present.
+    [[ -n "$gui_override"  ]] && export PSF_AIC_GUI="$gui_override"
+    [[ -n "$rviz_override" ]] && export PSF_AIC_RVIZ="$rviz_override"
   fi
 
   echo "[psf] project: $project_root"
   echo "[psf] adapter: $adapter"
   echo "[psf] mode:    $mode"
+  if [[ -n "$gui_override" || -n "$rviz_override" ]]; then
+    echo "[psf] flags:   gui=${PSF_AIC_GUI:-?} rviz=${PSF_AIC_RVIZ:-?} (CLI override)"
+  fi
   echo "[psf] →       $mode_script"
   echo
 
@@ -196,6 +220,7 @@ usage:
 
 verbs implemented:
   run --mode <play|eval|submit>   run the project in the named mode
+                                  flags: --gui/--no-gui --rviz/--no-rviz --headless
   diagnose                        inventory ROS topics in the running model container
   help                            this message
 
