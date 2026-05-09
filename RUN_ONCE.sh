@@ -143,6 +143,31 @@ else
   warn "AIC-Submission repo not found next to Workbench; skipped vision-CNN bootstrap"
 fi
 
+# ── 3.6 cli on PATH ───────────────────────────────────────────────────
+# Symlink the `workbench` CLI into ~/.local/bin so users can invoke it
+# from inside any project directory (e.g. AIC-Submission). The CLI
+# resolves the symlink internally, so adapter lookup still finds
+# $REPO_DIR/adapters/.
+say "linking workbench CLI to ~/.local/bin"
+LINK_DIR="$HOME/.local/bin"
+LINK_PATH="$LINK_DIR/workbench"
+mkdir -p "$LINK_DIR"
+if [[ -L "$LINK_PATH" || -e "$LINK_PATH" ]]; then
+  EXISTING_TARGET="$(readlink -f "$LINK_PATH" 2>/dev/null || true)"
+  if [[ "$EXISTING_TARGET" == "$REPO_DIR/workbench" ]]; then
+    ok "workbench already linked at $LINK_PATH"
+  else
+    warn "$LINK_PATH exists and points elsewhere ($EXISTING_TARGET); leaving it alone"
+  fi
+else
+  ln -s "$REPO_DIR/workbench" "$LINK_PATH"
+  ok "linked: $LINK_PATH -> $REPO_DIR/workbench"
+fi
+case ":$PATH:" in
+  *":$LINK_DIR:"*) : ;;
+  *) warn "$LINK_DIR is not on PATH; add it to your shell rc to use 'workbench' bare" ;;
+esac
+
 # ── 4. launcher ───────────────────────────────────────────────────────
 LAUNCHER="$REPO_DIR/workbench-ui"
 say "writing launcher: $LAUNCHER"

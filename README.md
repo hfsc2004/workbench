@@ -26,8 +26,8 @@ What ships now:
 | Component | Status |
 |---|---|
 | Architecture & design (`DESIGN.md`) | ✓ stable |
-| `workbench` CLI | ✓ `run --mode play` dispatches via adapter |
-| `intrinsic-aic` adapter pack | ✓ Play mode runs; Eval / Submit have documented manual fallbacks |
+| `workbench` CLI | ✓ `run` (play/eval/submit) with `--gui/--no-gui/--rviz/--no-rviz/--headless`; `diagnose` for topic inventory; `help` |
+| `intrinsic-aic` adapter pack | ✓ Play, Eval, Submit, and Diagnose all implemented |
 | Electron desktop UI | ✓ splash → chooser → onboarding wizard → operator view |
 | **Behavior Deck editor** | ✓ compose policies as named cards with parameters |
 | **Code editor (CodeMirror 6)** | ✓ in-app Python editor for `policy.py` with syntax highlighting, autocomplete, search, conflict-aware save |
@@ -96,30 +96,67 @@ Once the UI is up:
    live in the UI; clicking Stop sends SIGINT to the run and waits for
    containers to clean up.
 
-### CLI — `./workbench`
+### CLI — `workbench`
 
 ```bash
-# 1. Clone the repo (as above). RUN_ONCE.sh is NOT required for CLI use —
-#    the CLI is a self-contained bash script with no Node/Electron deps.
+# 1. Clone the repo (as above). RUN_ONCE.sh is NOT required for CLI use,
+#    but running it once symlinks `workbench` into ~/.local/bin so the
+#    command is available bare from any directory:
+~/Workbench/RUN_ONCE.sh    # idempotent; safe to skip if already done
 
 # 2. From a project directory (one containing workbench.project.yaml):
 cd ~/projects/my-aic-project
-~/Workbench/workbench run --mode play
+workbench run --mode play
 ```
 
-The project file declares which adapter the project uses and what
-configuration it should pass through. The CLI walks up from the current
-directory looking for `workbench.project.yaml`, so as long as your shell
-is somewhere inside the project tree it'll find it.
+If `~/.local/bin` is not on your PATH (RUN_ONCE.sh warns when this is
+the case), invoke the script directly: `~/Workbench/workbench run …`.
+Either way the CLI walks up from the current directory to find
+`workbench.project.yaml`, so as long as your shell is somewhere inside
+the project tree it'll find it.
 
 #### Verbs implemented today
 
 | Verb | What it does |
 |---|---|
-| `workbench run --mode play` | Launch the project's adapter in Play mode. For `intrinsic-aic`, that means sim + controllers + task board + cable on gripper, and (in v0.2+) the project's policy container running alongside, so behavior is visible in Gazebo. |
-| `workbench run --mode eval` | Adapter-defined. The `intrinsic-aic` adapter currently documents a manual fallback (run upstream `docker compose` directly). |
-| `workbench run --mode submit` | Adapter-defined. Same fallback note as `eval` for `intrinsic-aic`. |
-| `workbench help` | Print verbs and the list of installed adapters. |
+| `workbench run --mode play`   | Launch the project's adapter in Play mode. For `intrinsic-aic`: sim + controllers + task board + cable on gripper + the project's policy container, so behavior is visible in Gazebo. |
+| `workbench run --mode eval`   | Adapter-defined. For `intrinsic-aic`: full eval run (`ground_truth:=false` by default), produces a score line in the run log. |
+| `workbench run --mode submit` | Adapter-defined. For `intrinsic-aic`: builds the submission image and pushes it to the team's ECR repo (`aws configure` and a one-time ECR login required first). |
+| `workbench diagnose`          | Inventory ROS topics in the running model container and write a timestamped report to `<project>/.workbench/diagnose/<UTC>.md`. Requires a `run` to already be live in another terminal. |
+| `workbench help`              | Print verbs and the list of installed adapters. |
+
+#### Flags on `workbench run`
+
+| Flag | Effect |
+|---|---|
+| `--mode <play\|eval\|submit>` | Required. Selects the adapter mode script to invoke. |
+| `--gui` / `--no-gui`          | Override Gazebo window on/off, ignoring the YAML's `gui:` setting. |
+| `--rviz` / `--no-rviz`        | Override RViz window on/off, ignoring the YAML's `rviz:` setting. |
+| `--headless`                  | Shorthand for `--no-gui --no-rviz` — useful for CLI/CI runs that should not pop windows even if the project YAML enables them. |
+
+When no `--gui`/`--rviz` flag is passed, the YAML wins; the UI sets
+those keys for its own sessions and the CLI honors them. With a flag,
+the CLI takes precedence.
+
+#### Examples
+
+```bash
+# Play mode, headless (good for CI or for spawning a sim while you
+# probe topics from another terminal):
+workbench run --mode play --headless
+
+# In another terminal, while the above is running:
+workbench diagnose
+# → writes <project>/.workbench/diagnose/<UTC_TIMESTAMP>.md
+
+# Eval the current policy. By default this respects YAML; pass
+# --headless if you want it silent regardless:
+workbench run --mode eval --headless
+
+# Build + push the submission image to ECR. Requires AWS creds
+# configured per the adapter's submit.sh.
+workbench run --mode submit
+```
 
 #### Project file shape
 
@@ -129,7 +166,7 @@ A minimal `workbench.project.yaml` looks like:
 adapter: intrinsic-aic        # which adapter pack drives this project
 adapter_config:
   aic_ws: /path/to/ws_aic     # required for intrinsic-aic
-  gui: true
+  gui: true                   # CLI flags can override these
   rviz: true
   ground_truth: false
   cable_type: sfp_sc_cable
