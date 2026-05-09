@@ -14,7 +14,7 @@
 'use strict';
 
 const { app, BrowserWindow, Menu, ipcMain, dialog, clipboard } = require('electron');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -892,19 +892,40 @@ ipcMain.handle('project:open-in-editor', (_evt, projectPath) => {
   if (!projectPath || !fs.existsSync(projectPath)) {
     return { error: 'project path missing' };
   }
-  const tries = ['code', 'subl', 'gedit'];
-  for (const cmd of tries) {
-    try {
-      spawn(cmd, [projectPath], { detached: true, stdio: 'ignore' }).unref();
-      return { ok: true, opened: cmd };
-    } catch (_) { /* keep trying */ }
+  const policyPath = policyFilePath(projectPath);
+  const target = fs.existsSync(policyPath) ? policyPath : projectPath;
+
+  const hasCmd = (cmd) => {
+    const r = spawnSync('bash', ['-lc', `command -v ${cmd} >/dev/null 2>&1`], {
+      stdio: 'ignore',
+    });
+    return r.status === 0;
+  };
+
+  const launchDetached = (cmd, args) => {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    child.on('error', () => {});
+    child.unref();
+  };
+
+  // Prefer code editors; open the active policy file when present.
+  if (hasCmd('code')) {
+    launchDetached('code', [target]);
+    return { ok: true, opened: 'code', target };
   }
-  try {
-    spawn('xdg-open', [projectPath], { detached: true, stdio: 'ignore' }).unref();
-    return { ok: true, opened: 'xdg-open' };
-  } catch (e) {
-    return { error: 'no editor found' };
+  if (hasCmd('subl')) {
+    launchDetached('subl', [target]);
+    return { ok: true, opened: 'subl', target };
   }
+  if (hasCmd('gedit')) {
+    launchDetached('gedit', [target]);
+    return { ok: true, opened: 'gedit', target };
+  }
+  if (hasCmd('xdg-open')) {
+    launchDetached('xdg-open', [target]);
+    return { ok: true, opened: 'xdg-open', target };
+  }
+  return { error: 'no external editor/launcher found (code, subl, gedit, xdg-open)' };
 });
 
 // ── lifecycle ──────────────────────────────────────────────────────
