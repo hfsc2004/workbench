@@ -18,7 +18,9 @@
 
 set -euo pipefail
 
-WORKBENCH_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve through any symlink so adapter lookup works when this script is
+# linked into ~/.local/bin or similar from its real install location.
+WORKBENCH_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 ADAPTERS_DIR="$WORKBENCH_HOME/adapters"
 
 # ── helpers ────────────────────────────────────────────────────────────
