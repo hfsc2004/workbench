@@ -13,6 +13,8 @@
 #      Electron app.
 #   5. Smoke-tests by checking that `node`, `npm`, and the Electron binary
 #      all resolve.
+#   6. Bootstraps an optional vision-CNN Python venv in sibling AIC-Submission
+#      (for model training/inference scripts), when that repo is present.
 #
 # It does NOT:
 #   - Install Docker, Distrobox, pixi, or the AIC eval image. Those are
@@ -25,6 +27,8 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UI_DIR="$REPO_DIR/ui"
+AIC_SUBMISSION_DIR="${AIC_SUBMISSION_DIR:-$(cd "$REPO_DIR/../AIC-Submission" 2>/dev/null && pwd || true)}"
+VISION_VENV_DIR="${VISION_VENV_DIR:-${AIC_SUBMISSION_DIR}/.venv-vision}"
 NODE_MAJOR_REQUIRED=20  # Electron 30+ wants Node 20+; we target Node 22 LTS.
 
 # ── output helpers ────────────────────────────────────────────────────
@@ -109,6 +113,35 @@ fi
 cd "$REPO_DIR"
 
 ok "Electron + UI deps installed under ui/node_modules"
+
+# ── 3.5 optional vision-CNN deps (AIC-Submission) ────────────────────
+say "checking optional vision-CNN bootstrap"
+if [[ -n "${AIC_SUBMISSION_DIR}" && -d "${AIC_SUBMISSION_DIR}" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    if [[ ! -d "${VISION_VENV_DIR}" ]]; then
+      say "creating vision venv at ${VISION_VENV_DIR}"
+      python3 -m venv "${VISION_VENV_DIR}" || warn "failed creating vision venv"
+    fi
+    if [[ -x "${VISION_VENV_DIR}/bin/python" ]]; then
+      say "installing vision python deps (numpy, pyarrow, pillow, huggingface_hub)"
+      if ! "${VISION_VENV_DIR}/bin/python" -m pip install -q --upgrade pip >/dev/null 2>&1; then
+        warn "pip upgrade failed in vision venv (continuing)"
+      fi
+      if "${VISION_VENV_DIR}/bin/python" -m pip install -q numpy pyarrow pillow huggingface_hub >/dev/null 2>&1; then
+        ok "vision venv ready: ${VISION_VENV_DIR}"
+      else
+        warn "vision deps install failed (offline or restricted network). You can retry later:"
+        warn "  ${VISION_VENV_DIR}/bin/python -m pip install numpy pyarrow pillow huggingface_hub"
+      fi
+    else
+      warn "vision venv python missing at ${VISION_VENV_DIR}/bin/python"
+    fi
+  else
+    warn "python3 not found; skipped vision-CNN bootstrap"
+  fi
+else
+  warn "AIC-Submission repo not found next to Workbench; skipped vision-CNN bootstrap"
+fi
 
 # ── 4. launcher ───────────────────────────────────────────────────────
 LAUNCHER="$REPO_DIR/workbench-ui"
