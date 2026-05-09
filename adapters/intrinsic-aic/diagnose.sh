@@ -42,19 +42,23 @@ TS="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="$OUT_DIR/$TS.md"
 mkdir -p "$OUT_DIR"
 
-# Locate the running model container. Compose names it "aic-model-1"
-# under the "aic" project; we accept a few variants for safety.
+# Locate the running model container. play.sh / eval.sh name it
+# "workbench-aic-model-<pid>" (one per launch), and a fallback compose
+# variant uses "aic-model-1". Match the first running container that
+# fits either pattern.
 MODEL_CTR=""
-for candidate in aic-model-1 aic_model_1 aic-model aic_model; do
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$candidate"; then
-    MODEL_CTR="$candidate"
-    break
-  fi
-done
+while IFS= read -r ctr; do
+  case "$ctr" in
+    workbench-aic-model-*|aic-model-1|aic_model_1|aic-model|aic_model)
+      MODEL_CTR="$ctr"
+      break
+      ;;
+  esac
+done < <(docker ps --format '{{.Names}}' 2>/dev/null)
 
 if [[ -z "$MODEL_CTR" ]]; then
   echo "[psf] no running model container found." >&2
-  echo "[psf] start one first, e.g.: workbench run --mode play" >&2
+  echo "[psf] start one first, e.g.: workbench run --mode play --headless" >&2
   echo "[psf] currently running:" >&2
   docker ps --format '  {{.Names}} ({{.Image}})' >&2 || true
   exit 1
@@ -64,9 +68,15 @@ echo "[psf] container: $MODEL_CTR"
 echo "[psf] writing:   $OUT"
 
 # Activate the pixi env that ships ros2 + the aic_* message types.
+# The activate.d scripts depend on CONDA_PREFIX being set (the workspace
+# activate sources \$CONDA_PREFIX/setup.sh), and the model container
+# never exports it — so we set it explicitly here.
+PIXI_ENV=/ws_aic/src/aic/.pixi/envs/default
 ROS_EXEC() {
   docker exec "$MODEL_CTR" bash -lc "
-    source /ws_aic/src/aic/.pixi/envs/default/etc/conda/activate.d/*.sh 2>/dev/null || true
+    export CONDA_PREFIX=$PIXI_ENV
+    export PATH=$PIXI_ENV/bin:\$PATH
+    source $PIXI_ENV/setup.sh 2>/dev/null || true
     export RMW_IMPLEMENTATION=rmw_zenoh_cpp
     $1
   " 2>&1 || true
