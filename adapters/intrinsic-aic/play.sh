@@ -53,7 +53,42 @@ CABLE_TYPE="${PSF_AIC_CABLE_TYPE:-sfp_sc_cable}"
 EVAL_IMAGE="${PSF_AIC_EVAL_IMAGE:-ghcr.io/intrinsic-dev/aic/aic_eval:latest}"
 MODEL_IMAGE="${PSF_AIC_MODEL_IMAGE:-my-solution:v2}"
 START_ENGINE="${PSF_AIC_START_ENGINE:-true}"
-GPU_DEVICE="${PSF_AIC_GPU_DEVICE:-all}"
+
+# GPU selection. On hybrid-GPU hosts (e.g. a workstation with one display GPU
+# and one headless compute card), `--gpus all` lets Gazebo's renderer land on
+# the headless card whose framebuffer never reaches the X display — the
+# windows open black. To avoid that, prefer the GPU that's actually driving
+# the display. Detection order:
+#   1. PSF_AIC_GPU_DEVICE env override (anything `docker run --gpus` accepts).
+#   2. The GPU whose UUID matches Xorg's primary device (single-GPU hosts
+#      naturally fall through to "device=GPU-...").
+#   3. "all" — single-GPU hosts work fine; this is also the safe default for
+#      machines where detection fails.
+detect_display_gpu() {
+  command -v nvidia-smi >/dev/null 2>&1 || return 1
+  command -v xrandr     >/dev/null 2>&1 || return 1
+  # Card actively driving the X display, by PCI bus id.
+  local bus
+  bus="$(nvidia-smi --query-gpu=pci.bus_id,display_active --format=csv,noheader 2>/dev/null \
+        | awk -F', *' '$2 == "Enabled" { print tolower($1); exit }')"
+  [[ -n "$bus" ]] || return 1
+  # Strip the leading "00000000:" docker doesn't want, then look up the UUID.
+  local short="${bus#00000000:}"
+  nvidia-smi --query-gpu=pci.bus_id,uuid --format=csv,noheader 2>/dev/null \
+    | awk -F', *' -v b="$short" '
+        { gsub(/^00000000:/, "", $1); if (tolower($1) == b) { print $2; exit } }
+      '
+}
+if [[ -n "${PSF_AIC_GPU_DEVICE:-}" ]]; then
+  GPU_DEVICE="$PSF_AIC_GPU_DEVICE"
+else
+  _display_uuid="$(detect_display_gpu || true)"
+  if [[ -n "$_display_uuid" ]]; then
+    GPU_DEVICE="device=$_display_uuid"
+  else
+    GPU_DEVICE="all"
+  fi
+fi
 
 # ── pre-flight ─────────────────────────────────────────────────────────
 
@@ -153,11 +188,8 @@ EVAL_DOCKER_ARGS=(
   # Prefer hardware GL in Gazebo / RViz on hybrid-GPU hosts.
   # Without these hints, GLX may resolve to Mesa/llvmpipe even when
   # CUDA/NVIDIA devices are visible in-container.
-  -e "NVIDIA_VISIBLE_DEVICES=$GPU_DEVICE"
   -e "NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute,display"
-  -e "__NV_PRIME_RENDER_OFFLOAD=1"
   -e "__GLX_VENDOR_LIBRARY_NAME=nvidia"
-  -e "__VK_LAYER_NV_optimus=NVIDIA_only"
   -e "MESA_LOADER_DRIVER_OVERRIDE=nvidia"
   -e "LIBGL_ALWAYS_SOFTWARE=0"
   -e "QT_OPENGL=desktop"
@@ -194,14 +226,6 @@ EVAL_LAUNCH_ARGS=(
 # No --gpus here. The policy is pure Python + ros2 messaging; it doesn't
 # render or run CUDA. Sharing the GPU with Gazebo causes EGL/DRI2 init
 # races on dual-GPU setups (Maxwell + headless compute).
-# Per-run debug artifact dir. Project-scoped so it lives next to the
-# code under inspection (pattern matches workbench diagnose's output
-# dir). Mounted into the model container at a stable path so policy
-# code can write images, logs, etc. without knowing host paths.
-WORKBENCH_DEBUG_HOST="${WORKBENCH_PROJECT_ROOT:-/tmp}/.workbench/debug"
-WORKBENCH_DEBUG_CTR="/workbench-debug"
-mkdir -p "$WORKBENCH_DEBUG_HOST" 2>/dev/null || true
-
 MODEL_DOCKER_ARGS=(
   run
   --rm
@@ -214,8 +238,6 @@ MODEL_DOCKER_ARGS=(
   -e "AIC_VISION_MODEL_ENABLE=${PSF_AIC_VISION_MODEL_ENABLE:-0}"
   -e "AIC_VISION_MODEL_PATH=${PSF_AIC_VISION_MODEL_PATH:-/ws_aic/src/aic_policy/data/models/vision_offset_model.npz}"
   -e "AIC_VISION_CAPTURE_DIR=${PSF_AIC_VISION_CAPTURE_DIR:-/ws_aic/src/aic_policy_capture}"
-  -e "WORKBENCH_DEBUG_DIR=$WORKBENCH_DEBUG_CTR"
-  -v "$WORKBENCH_DEBUG_HOST:$WORKBENCH_DEBUG_CTR:rw"
   "$MODEL_IMAGE"
 )
 

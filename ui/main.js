@@ -27,6 +27,29 @@ const RECENTS_FILE = path.join(
   'recent-projects.json'
 );
 
+// ── helpers ────────────────────────────────────────────────────────
+
+// Returns the UUID of the NVIDIA GPU currently driving the X display, or
+// null if we can't tell (no nvidia-smi, single-GPU host, etc.). Used to
+// pin the eval container's renderer to the display GPU on hybrid hosts.
+function detectDisplayGpuUuid() {
+  try {
+    const r = spawnSync(
+      'nvidia-smi',
+      ['--query-gpu=display_active,uuid', '--format=csv,noheader'],
+      { encoding: 'utf8', timeout: 3000 }
+    );
+    if (r.status !== 0 || !r.stdout) return null;
+    for (const line of r.stdout.split('\n')) {
+      const [active, uuid] = line.split(',').map((s) => s && s.trim());
+      if (active === 'Enabled' && uuid) return uuid;
+    }
+  } catch (_) {
+    /* fall through */
+  }
+  return null;
+}
+
 // ── window ─────────────────────────────────────────────────────────
 let mainWindow = null;
 
@@ -425,11 +448,23 @@ ipcMain.handle('run:start', (_evt, { projectPath, mode }) => {
 
   // Spawn the workbench CLI from the project directory. The CLI walks
   // up to find workbench.project.yaml, so cwd matters.
+  //
+  // GPU pinning: workbench-ui shows Gazebo/RViz windows, so the renderer
+  // must land on the GPU that drives the user's display. Without this,
+  // hosts with a second headless GPU (e.g. compute card) end up rendering
+  // onto the wrong framebuffer and the windows open black. The CLI's own
+  // default prefers a *headless* GPU; we override here for the UI case.
+  const childEnv = { ...process.env };
+  if (!childEnv.PSF_AIC_GPU_DEVICE) {
+    const displayUuid = detectDisplayGpuUuid();
+    if (displayUuid) childEnv.PSF_AIC_GPU_DEVICE = `device=${displayUuid}`;
+  }
+
   let proc;
   try {
     proc = spawn(WORKBENCH_BIN, ['run', '--mode', mode], {
       cwd: projectPath,
-      env: { ...process.env },
+      env: childEnv,
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
     });

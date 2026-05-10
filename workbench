@@ -128,6 +128,20 @@ USAGE
   # without each one inventing its own discovery logic.
   export WORKBENCH_PROJECT_ROOT="$project_root"
 
+  # GPU selection for headless CLI runs: prefer a *headless* NVIDIA GPU
+  # (no attached display) so we leave the display GPU free for the user's
+  # desktop. workbench-ui sets PSF_AIC_GPU_DEVICE explicitly to pick the
+  # display GPU; that env wins over what we set here. If detection fails
+  # (single-GPU host, no nvidia-smi, etc.), the adapter's own fallback
+  # handles it.
+  if [[ -z "${PSF_AIC_GPU_DEVICE:-}" ]] && command -v nvidia-smi >/dev/null 2>&1; then
+    headless_uuid="$(nvidia-smi --query-gpu=display_active,uuid --format=csv,noheader 2>/dev/null \
+                    | awk -F', *' '$1 == "Disabled" { print $2; exit }')"
+    if [[ -n "$headless_uuid" ]]; then
+      export PSF_AIC_GPU_DEVICE="device=$headless_uuid"
+    fi
+  fi
+
   local adapter_dir="$ADAPTERS_DIR/$adapter"
   [[ -d "$adapter_dir" ]] || die "unknown adapter: $adapter
         looked for: $adapter_dir"
@@ -163,6 +177,7 @@ USAGE
     export PSF_AIC_VISION_MODEL_ENABLE="$(yaml_get_under "$project_file" adapter_config vision_model_enable)"
     export PSF_AIC_VISION_MODEL_PATH="$(yaml_get_under "$project_file" adapter_config vision_model_path)"
     export PSF_AIC_VISION_CAPTURE_DIR="$(yaml_get_under "$project_file" adapter_config vision_capture_dir)"
+    export PSF_AIC_GPU_DEVICE="$(yaml_get_under "$project_file" adapter_config gpu_device)"
     # CLI flags override YAML when present.
     [[ -n "$gui_override"  ]] && export PSF_AIC_GUI="$gui_override"
     [[ -n "$rviz_override" ]] && export PSF_AIC_RVIZ="$rviz_override"
