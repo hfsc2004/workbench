@@ -29,31 +29,32 @@ EVAL_VISUAL="${PSF_AIC_EVAL_VISUAL:-false}"
 GAZEBO_GUI="false"
 LAUNCH_RVIZ="false"
 XHOST_GRANTED=0
-XHOST_RULE=""
+
+# GPU selection — same hybrid-GPU pitfall as Play (see play.sh for the long
+# explanation). Pick the display GPU when we can; fall back to "all".
+detect_display_gpu() {
+  command -v nvidia-smi >/dev/null 2>&1 || return 1
+  local bus
+  bus="$(nvidia-smi --query-gpu=pci.bus_id,display_active --format=csv,noheader 2>/dev/null \
+        | awk -F', *' '$2 == "Enabled" { print tolower($1); exit }')"
+  [[ -n "$bus" ]] || return 1
+  local short="${bus#00000000:}"
+  nvidia-smi --query-gpu=pci.bus_id,uuid --format=csv,noheader 2>/dev/null \
+    | awk -F', *' -v b="$short" '
+        { gsub(/^00000000:/, "", $1); if (tolower($1) == b) { print $2; exit } }
+      '
+}
+if [[ -n "${PSF_AIC_GPU_DEVICE:-}" ]]; then
+  GPU_VISIBLE="$PSF_AIC_GPU_DEVICE"
+else
+  _display_uuid="$(detect_display_gpu || true)"
+  GPU_VISIBLE="${_display_uuid:-all}"
+fi
 if [[ "$EVAL_VISUAL" == "true" ]]; then
   GAZEBO_GUI="${PSF_AIC_GUI:-true}"
   LAUNCH_RVIZ="${PSF_AIC_RVIZ:-true}"
   if command -v xhost >/dev/null 2>&1; then
-    # Containers usually run as root; "local:docker" is per-Docker-user
-    # and on many setups silently no-ops, leaving the container unable
-    # to render and the user staring at black windows. Try the rules
-    # most likely to work, in increasing permissiveness, and stop on
-    # first success. Surface a real warning if none take.
-    for rule in "local:root" "local:docker" "local:"; do
-      if xhost "+${rule}" >/dev/null 2>&1; then
-        XHOST_GRANTED=1
-        XHOST_RULE="$rule"
-        break
-      fi
-    done
-    if (( XHOST_GRANTED == 0 )); then
-      echo "[intrinsic-aic/eval] WARNING: xhost grant failed; GUI windows" >&2
-      echo "                     will likely render black. Try manually:" >&2
-      echo "                       xhost +local:root" >&2
-    fi
-  else
-    echo "[intrinsic-aic/eval] WARNING: xhost not installed; GUI windows" >&2
-    echo "                     may not render. Install x11-xserver-utils." >&2
+    xhost +local:docker >/dev/null 2>&1 && XHOST_GRANTED=1 || true
   fi
 fi
 echo "                     eval_visual   = $EVAL_VISUAL"
@@ -63,8 +64,8 @@ echo "                     auto_build    = $AUTO_BUILD_MODEL"
 echo
 
 cleanup() {
-  if (( XHOST_GRANTED == 1 )) && [[ -n "$XHOST_RULE" ]] && command -v xhost >/dev/null 2>&1; then
-    xhost "-${XHOST_RULE}" >/dev/null 2>&1 || true
+  if (( XHOST_GRANTED == 1 )) && command -v xhost >/dev/null 2>&1; then
+    xhost -local:docker >/dev/null 2>&1 || true
   fi
   docker compose -f "$COMPOSE_FILE" down >/dev/null 2>&1 || true
   if [[ -n "${OVERRIDE_FILE:-}" ]]; then
@@ -109,11 +110,9 @@ if [[ "$EVAL_VISUAL" == "true" ]]; then
     environment:
       DISPLAY: "${DISPLAY:-:0}"
       QT_X11_NO_MITSHM: "1"
-      NVIDIA_VISIBLE_DEVICES: "all"
+      NVIDIA_VISIBLE_DEVICES: "$GPU_VISIBLE"
       NVIDIA_DRIVER_CAPABILITIES: "graphics,utility,compute,display"
-      __NV_PRIME_RENDER_OFFLOAD: "1"
       __GLX_VENDOR_LIBRARY_NAME: "nvidia"
-      __VK_LAYER_NV_optimus: "NVIDIA_only"
       MESA_LOADER_DRIVER_OVERRIDE: "nvidia"
       LIBGL_ALWAYS_SOFTWARE: "0"
       QT_OPENGL: "desktop"
