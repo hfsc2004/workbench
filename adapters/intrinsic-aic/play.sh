@@ -194,6 +194,14 @@ EVAL_LAUNCH_ARGS=(
 # No --gpus here. The policy is pure Python + ros2 messaging; it doesn't
 # render or run CUDA. Sharing the GPU with Gazebo causes EGL/DRI2 init
 # races on dual-GPU setups (Maxwell + headless compute).
+# Per-run debug artifact dir. Project-scoped so it lives next to the
+# code under inspection (pattern matches workbench diagnose's output
+# dir). Mounted into the model container at a stable path so policy
+# code can write images, logs, etc. without knowing host paths.
+WORKBENCH_DEBUG_HOST="${WORKBENCH_PROJECT_ROOT:-/tmp}/.workbench/debug"
+WORKBENCH_DEBUG_CTR="/workbench-debug"
+mkdir -p "$WORKBENCH_DEBUG_HOST" 2>/dev/null || true
+
 MODEL_DOCKER_ARGS=(
   run
   --rm
@@ -206,6 +214,8 @@ MODEL_DOCKER_ARGS=(
   -e "AIC_VISION_MODEL_ENABLE=${PSF_AIC_VISION_MODEL_ENABLE:-0}"
   -e "AIC_VISION_MODEL_PATH=${PSF_AIC_VISION_MODEL_PATH:-/ws_aic/src/aic_policy/data/models/vision_offset_model.npz}"
   -e "AIC_VISION_CAPTURE_DIR=${PSF_AIC_VISION_CAPTURE_DIR:-/ws_aic/src/aic_policy_capture}"
+  -e "WORKBENCH_DEBUG_DIR=$WORKBENCH_DEBUG_CTR"
+  -v "$WORKBENCH_DEBUG_HOST:$WORKBENCH_DEBUG_CTR:rw"
   "$MODEL_IMAGE"
 )
 

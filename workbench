@@ -123,6 +123,11 @@ USAGE
   adapter="$(yaml_get "$project_file" adapter)"
   [[ -n "$adapter" ]] || die "workbench.project.yaml has no 'adapter:' field"
 
+  # Generic env exposed to every adapter (not just intrinsic-aic). Lets
+  # adapters write per-run debug artifacts into a project-scoped path
+  # without each one inventing its own discovery logic.
+  export WORKBENCH_PROJECT_ROOT="$project_root"
+
   local adapter_dir="$ADAPTERS_DIR/$adapter"
   [[ -d "$adapter_dir" ]] || die "unknown adapter: $adapter
         looked for: $adapter_dir"
