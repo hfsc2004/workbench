@@ -121,12 +121,29 @@ if [[ "$EVAL_VISUAL" == "true" ]]; then
 EOF
 fi
 
+# Per-project debug-artifact dir, mounted into the model container at a
+# stable path (matches play.sh wiring). Policy code writes here so the
+# host can inspect images/logs after a run.
+WORKBENCH_DEBUG_HOST="${WORKBENCH_PROJECT_ROOT:-/tmp}/.workbench/debug"
+WORKBENCH_DEBUG_CTR="/workbench-debug"
+mkdir -p "$WORKBENCH_DEBUG_HOST" 2>/dev/null || true
+# Pre-wipe vision subdir so each Eval run starts with a clean slate.
+# The policy also wipes via _vision_debug_wipe() on activate, but a
+# host-side wipe is belt-and-suspenders for cases where the policy
+# crashes before activate.
+rm -rf "$WORKBENCH_DEBUG_HOST/vision" 2>/dev/null || true
+mkdir -p "$WORKBENCH_DEBUG_HOST/vision" 2>/dev/null || true
+
 cat >> "$OVERRIDE_FILE" <<EOF
   model:
     environment:
       AIC_VISION_MODEL_ENABLE: "${PSF_AIC_VISION_MODEL_ENABLE:-0}"
       AIC_VISION_MODEL_PATH: "${PSF_AIC_VISION_MODEL_PATH:-/ws_aic/src/aic_policy/data/models/vision_offset_model.npz}"
       AIC_VISION_CAPTURE_DIR: "${PSF_AIC_VISION_CAPTURE_DIR:-/ws_aic/src/aic_policy_capture}"
+      WORKBENCH_DEBUG_DIR: "$WORKBENCH_DEBUG_CTR"
+      VISION_DEBUG: "1"
+    volumes:
+      - $WORKBENCH_DEBUG_HOST:$WORKBENCH_DEBUG_CTR:rw
 EOF
 
 exec docker compose -f "$COMPOSE_FILE" -f "$OVERRIDE_FILE" up --force-recreate --abort-on-container-exit
